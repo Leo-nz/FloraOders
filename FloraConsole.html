@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v239.html | confirm/set 统一预览勾选后 Ctrl+Enter 执行；41号店队列点击命令；完整使用手册 -->
+<!-- VERSION: FloraConsole_v242.html | 修复Ctrl+2预约队列展开/折叠时的页面滚动跳屏 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v239">
+<meta name="flora-console-version" content="v242">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -326,8 +326,9 @@ input,select,textarea{font-family:inherit;font-size:16px}
 }
 
 /* v88：check 查询结果使用独立显示面板，不再复用订单解析结果列表布局 */
-.check-result-panel{width:100%;margin-top:12px;display:block;}
+.check-result-panel{width:100%;margin-top:12px;display:block;overflow-anchor:none;}
 .check-result-panel.hidden{display:none!important;}
+.check-panel-list{overflow-anchor:none;}
 .check-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--gray-200);border-radius:10px 10px 0 0;background:#f8fafc;}
 .check-panel-title{font-size:13px;font-weight:700;color:var(--gray-700);}
 .check-panel-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
@@ -626,7 +627,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .turn-queue-inline .turn-queue-strip{padding:8px 9px;background:#f3f4f6}
 .turn-queue-inline .turn-queue-empty{background:#f3f4f6}
 /* v230：只让自动更新的轨道/队列退出滚动锚定；录入区与查询结果必须保留浏览器锚点，避免长列表滚动时跳动。 */
-#timelineRooms,#timelineFutureRooms,#timelineOtherShops,.turn-queue-inline,#therapistTurnQueueContent,#therapistStatsQueuesWrap{overflow-anchor:none}
+#timelineRooms,#timelineFutureRooms,#timelineOtherShops,.turn-queue-inline,#therapistTurnQueueContent,#therapistStatsQueuesWrap,#therapistFutureQueue,#timelineFutureContent{overflow-anchor:none}
 #therapistStatsViewWrap{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 12px}
 #therapistStatsView{max-width:190px;padding:6px 8px;border:1px solid var(--gray-300);border-radius:6px;background:#fff;font-size:12px}
 @media(max-width:600px){.turn-queue-strip{gap:4px;padding:7px}.turn-queue-chip{min-width:60px;padding:5px 6px}}
@@ -849,7 +850,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
         <div class="help-page hidden" data-help-page="4">
           <div class="parse-help-section">
             <div class="parse-help-title">12. 录入区快捷操作与键盘快捷键</div>
-            <div>录入框下方的快捷命令包括：锁定显示、确认订单、过期清理、蜂蜜统计、近期预约、明天预约。确认订单只显示待确认清单；过期清理显示预约清单；其它项目按各自查询功能运行。</div>
+            <div>录入框下方快捷命令依次包括：工作计数、完整订单、确认订单、过期清理、蜂蜜统计、近期预约、明天预约。工作计数统计今天09:30至当前时间的订单；查询结果显示在录入区下方，列表更新或翻页时保持当前浏览位置，不会主动跳回输入框；完整订单只把 <code>7 names,1,250,60,备注,5678v,1330</code> 填入 textarea，供修改后解析；确认订单只显示真实待确认清单，勾选后按 Ctrl+Enter 执行；过期清理显示预约清单；其它项目按各自查询功能运行。</div>
             <div><code>Ctrl+T</code> 解析/预览；<code>Ctrl+Enter</code> 复制当前命令并执行已解析、已勾选的项目；<code>Ctrl+C</code> 清空输入框。</div>
             <div><code>Ctrl+A</code> 录入；<code>Ctrl+W</code> 趋势；<code>Ctrl+L</code> 明细；<code>Ctrl+X</code> 理疗室；<code>Ctrl+D</code> 今日概览；<code>Ctrl+Q</code> 理疗师统计；<code>Ctrl+E</code> Excel折线图；<code>Ctrl+H</code> 或 <code>Ctrl+Alt+H</code> 打开本说明书。</div>
             <div><code>Ctrl+1</code> 折叠/展开今天要处理；<code>Ctrl+2</code> 折叠/展开预约队列；<code>Ctrl+3</code> 折叠/展开41号店理疗师队列。</div>
@@ -1032,7 +1033,8 @@ input,select,textarea{font-family:inherit;font-size:16px}
             <div class="form-hint parse-input-note">一行可以输入一条或多条订单；也可以输入查询、删除指令。输入完成后按 <code>Ctrl+T</code> 解析。详细格式与使用说明请查看 <b>说明[H]</b>。</div>
             <div class="quick-command-row" aria-label="常用快捷命令">
               <span class="quick-command-caption">快捷命令：</span>
-              <button type="button" onclick="runQuickCommand('lock')" title="统计今天09:30至当前时间的订单">锁定显示</button>
+              <button type="button" onclick="runQuickCommand('lock')" title="统计今天09:30至当前时间的订单">工作计数</button>
+              <button type="button" onclick="runQuickCommand('fullorder')" title="填入一条完整订单格式示例，不自动解析">完整订单</button>
               <button type="button" onclick="runQuickCommand('confirmall')" title="列出所有真实待确认订单；核查勾选后按 Ctrl+Enter 确认">确认订单</button>
               <button type="button" onclick="runQuickCommand('clearbook')" title="预览已结束的预约，Ctrl+Enter确认清除">过期清理</button>
               <button type="button" onclick="runQuickCommand('honey')" title="统计本月1日至今天的蜂蜜订单">蜂蜜统计</button>
@@ -1717,6 +1719,11 @@ function toggleTherapistQueuePanel(contentId){
   const panel=content.closest('.turn-queue-inline, .therapist-turn-queue');
   const btn=panel?.querySelector('.queue-fold-button')||panel?.querySelector('.turn-queue-toggle');
   const arrow=btn?.querySelector('.turn-queue-arrow');
+  // v242：以固定的队列标题按钮作为视口锚点，避免Safari把即将隐藏/重绘的队列内容
+  // 选作滚动锚点；记录原滚动位置，并在同步完成折叠/展开和队列刷新后恢复标题位置。
+  const preserveViewport=contentId==='timelineFutureContent';
+  const oldScrollY=window.scrollY||window.pageYOffset||0;
+  const oldAnchorTop=preserveViewport&&btn?btn.getBoundingClientRect().top:null;
   const collapsed=content.classList.toggle('turn-queue-collapsed');
   if(btn){
     btn.setAttribute('aria-expanded',String(!collapsed));
@@ -1728,6 +1735,15 @@ function toggleTherapistQueuePanel(contentId){
   if(arrow)arrow.textContent=collapsed?'展开 ▾':'折叠 ▴';
   // v232：预约队列折叠期间暂停轨道DOM重绘；重新展开时立即刷新到当前时间。
   if(!collapsed&&contentId==='timelineFutureContent')renderTimelineFuture();
+  if(preserveViewport&&btn&&oldAnchorTop!==null){
+    const newAnchorTop=btn.getBoundingClientRect().top;
+    const targetY=Math.max(0,oldScrollY+(newAnchorTop-oldAnchorTop));
+    const doc=document.documentElement;
+    const body=document.body;
+    const maxScroll=Math.max(0,Math.max(doc.scrollHeight,body?body.scrollHeight:0)-window.innerHeight);
+    const safeTarget=Math.min(targetY,maxScroll);
+    if(Math.abs((window.scrollY||window.pageYOffset||0)-safeTarget)>1)window.scrollTo(0,safeTarget);
+  }
 }
 function toggleHomeTherapistQueue(){toggleTherapistQueuePanel('therapistTurnQueueContent');}
 function renderTherapistQueueInline(code,list,now=new Date()){
@@ -2976,6 +2992,29 @@ function buildSequenceGapReport(candidateOrders, filterDate, therapistNames, que
     missingCount:gaps.reduce((sum,g)=>sum+g.missingCount,0), pageSize:30
   };
 }
+
+// v241：结果区更新时固定当前视口锚点；若新内容缩短导致 Safari 无法维持原滚动位置，
+// 仅在必要时为该结果区补足最小高度，不改变订单数据、排序或分页逻辑。
+function setResultHTMLPreservingScroll(wrap, html){
+  if(!wrap) return;
+  const oldScrollY=window.scrollY||window.pageYOffset||0;
+  const oldTop=wrap.getBoundingClientRect().top;
+  wrap.style.minHeight='';
+  wrap.innerHTML=html;
+  const newTop=wrap.getBoundingClientRect().top;
+  const newHeight=wrap.getBoundingClientRect().height;
+  const currentScrollY=window.scrollY||window.pageYOffset||0;
+  const targetY=Math.max(0,currentScrollY+(newTop-oldTop));
+  const doc=document.documentElement;
+  let maxScroll=Math.max(0,Math.max(doc.scrollHeight,document.body?document.body.scrollHeight:0)-window.innerHeight);
+  if(targetY>maxScroll){
+    const extra=targetY-maxScroll;
+    wrap.style.minHeight=Math.ceil(newHeight+extra)+'px';
+    maxScroll=Math.max(0,Math.max(doc.scrollHeight,document.body?document.body.scrollHeight:0)-window.innerHeight);
+  }
+  if(Math.abs((window.scrollY||window.pageYOffset||0)-targetY)>1) window.scrollTo(0,Math.min(targetY,maxScroll));
+}
+
 function renderSequenceGapReport(page=sequenceGapPage){
   const wrap=document.getElementById('checkResult');
   if(!wrap || !sequenceGapReport) return;
@@ -2998,7 +3037,7 @@ function renderSequenceGapReport(page=sequenceGapPage){
   </div>`;
   if(!rows.length){
     html+=`<div class="check-panel-list"><div class="check-empty-state">${report.ordersCount?'没有发现非连续序号（已按日期、店铺和理疗师分别检查）。':'没有找到符合筛选条件且具有数字序号的订单。'}</div></div>`;
-    wrap.innerHTML=html;
+    setResultHTMLPreservingScroll(wrap,html);
     return;
   }
   html+='<div class="check-panel-list sequence-gap-list">';
@@ -3024,7 +3063,7 @@ function renderSequenceGapReport(page=sequenceGapPage){
     <span class="sequence-gap-pagination-label">${pageLabel}</span>
     <button class="btn btn-outline btn-sm" onclick="renderSequenceGapReport(${sequenceGapPage+1})" ${sequenceGapPage>=totalPages-1?'disabled':''}>下一页</button>
   </div>`;
-  wrap.innerHTML=html;
+  setResultHTMLPreservingScroll(wrap,html);
 }
 
 function handleCheckCommand(text){
@@ -3645,6 +3684,7 @@ function runQuickCommand(kind){
     if(now.getHours()*60+now.getMinutes()<570){showToast('09:30以后才能统计当日计费时段。','error');return;}
     command=`check 0930 ${currentHHMM}`;
   }
+  else if(kind==='fullorder') command='7 names,1,250,60,备注,5678v,1330';
   else if(kind==='confirmall') command='confirm all';
   else if(kind==='clearbook') command='clear book';
   else if(kind==='honey') command=`chart h ${now.getMonth()+1}-1 ${monthDay(now)}`;
@@ -3654,6 +3694,13 @@ function runQuickCommand(kind){
   const input=document.getElementById('parseTextarea');
   if(!input)return;
   input.value=command;
+  if(kind==='fullorder'){
+    // 完整订单按钮只填入格式示例，不解析、不执行；同时清除旧预览，避免误按 Ctrl+Enter。
+    const parseWrap=document.getElementById('parseResult');if(parseWrap)parseWrap.innerHTML='';
+    const checkWrap=document.getElementById('checkResult');if(checkWrap){checkWrap.innerHTML='';checkWrap.classList.add('hidden');}
+    parseResults=[];lastCheckQueryMeta=null;
+    return;
+  }
   // v239：确认订单只生成待核查清单；其他快捷查询沿用原有解析行为。
   parseMessages();
 }
@@ -5346,7 +5393,7 @@ function renderCheckResults(){
 
   if(checkRows.length===0){
     html+=`<div class="check-panel-list"><div class="check-empty-state">没有符合条件的订单</div></div>`;
-    wrap.innerHTML=html;
+    setResultHTMLPreservingScroll(wrap,html);
     return;
   }
 
@@ -5444,7 +5491,7 @@ function renderCheckResults(){
   });
   html+='</div>';
   html+=paginationHtml;
-  wrap.innerHTML=html;
+  setResultHTMLPreservingScroll(wrap,html);
 }
 
 function overwriteCompareValue(order,field){
@@ -5478,7 +5525,7 @@ function renderOverwriteComparison(r){
 
 function renderParseResults(){
   const wrap=document.getElementById('parseResult');
-  if(parseResults.length===0){wrap.innerHTML='';return;}
+  if(parseResults.length===0){setResultHTMLPreservingScroll(wrap,'');return;}
 
   const hasDeleteRange=parseResults.some(r=>r.action==='deleteRange');
   const hasCheck=parseResults.some(r=>r.action==='check');
@@ -5601,7 +5648,7 @@ function renderParseResults(){
     </button>
   </div>`;
 
-  wrap.innerHTML=html;
+  setResultHTMLPreservingScroll(wrap,html);
 }
 
 function toggleParse(idx){
