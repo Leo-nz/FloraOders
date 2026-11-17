@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v237.html | set 命令管理队列临时位置与离开状态；离开人员接到新正式订单自动返回并按接单时间排序 -->
+<!-- VERSION: FloraConsole_v239.html | confirm/set 统一预览勾选后 Ctrl+Enter 执行；41号店队列点击命令；完整使用手册 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v237">
+<meta name="flora-console-version" content="v239">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -602,10 +602,11 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .turn-queue-toggle span{font-size:11px;color:#334155;font-weight:600}
 .turn-queue-strip{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:9px 11px;scrollbar-width:thin;background:#fff}
 .turn-queue-chip{flex:0 0 auto;min-width:68px;max-width:116px;padding:6px 9px;border:1px solid rgba(0,0,0,.15);border-radius:8px;color:#475467;text-align:center;line-height:1.15;box-shadow:0 1px 2px rgba(15,23,42,.10)}
+.turn-queue-chip[role="button"]{cursor:pointer}
 .turn-queue-chip strong{display:block;font-size:12px;color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750}
 .turn-queue-chip small{display:block;font-size:9px;color:inherit;opacity:.92;font-weight:600;margin-top:3px;white-space:nowrap}.turn-queue-chip .queue-book-line{white-space:normal;line-height:1.2;margin-top:4px}
 .turn-queue-chip.busy{background:rgba(40,167,69,.65)}.turn-queue-chip.idle,.turn-queue-chip.no-turn{background:rgba(120,120,120,.45)}.turn-queue-chip.booked{background:rgba(0,123,255,.55)}
-/* v237：正常队列与离开人员使用清晰竖向分隔；离开人员置于右侧并弱化显示。 */
+/* v238：正常队列与离开人员使用清晰竖向分隔；离开人员置于右侧并弱化显示。 */
 .queue-out-divider{align-self:stretch;flex:0 0 30px;min-height:48px;border-left:3px solid #64748b;margin:0 5px;display:flex;align-items:center;justify-content:center;position:relative}
 .queue-out-divider span{writing-mode:vertical-rl;font-size:9px;font-weight:800;letter-spacing:1px;color:#475569;background:#e2e8f0;padding:4px 2px;border-radius:4px}
 .turn-queue-chip.queue-out-chip{background:#eef0f3;border:1px solid #9ca3af;color:#667085;box-shadow:none;opacity:.9}
@@ -712,7 +713,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
     <div class="queue-card-header">
       <div class="queue-card-title">
         <svg class="queue-card-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 21v-1.5A5.5 5.5 0 0 1 8 14h2a5.5 5.5 0 0 1 5.5 5.5V21M16 5.5a3.5 3.5 0 0 1 0 6.8M18 14a4.5 4.5 0 0 1 3.5 4.3V21"/></svg>
-        <div><strong>4号店理疗师队列</strong><small id="therapistTurnQueueSummary">最近3天名单 · 最近接单时间优先</small></div>
+        <div><strong id="therapistTurnQueueTitle">41号店理疗师队列</strong><small id="therapistTurnQueueSummary">最近3天名单 · 最近接单时间优先</small></div>
       </div>
       <button type="button" class="btn btn-outline btn-sm queue-fold-button" id="therapistTurnQueueToggle" aria-expanded="true" onclick="toggleHomeTherapistQueue()">折叠列表[3]</button>
     </div>
@@ -747,233 +748,125 @@ input,select,textarea{font-family:inherit;font-size:16px}
 <section id="tab-help" class="tab-content hidden">
   <div class="card">
     <div class="card-header">
-      <div class="card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>说明
-      </div>
-      <span style="font-size:12px;color:var(--gray-400)">录入、查询、删除、日期与快捷键</span>
+      <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
-        <div class="parse-help-intro">一行可以输入一条或多条订单，也可以输入查询、删除或图表命令。输入完成后按 <code>Ctrl+T</code> 解析；详细格式如下。</div>
+        <div class="parse-help-intro">基本流程：在「录入」页输入订单或命令，按 Ctrl+T 解析并查看下方预览；需要写入、删除、确认或调整队列时，逐项核查勾选状态，再按 Ctrl+Enter 执行。仅解析不会修改数据。</div>
         <div class="help-pagination" aria-label="说明分页导航">
           <button type="button" class="btn btn-outline btn-sm" id="helpPrevBtn" onclick="changeHelpPage(-1)">← 上一页</button>
-          <span id="helpPageLabel" aria-live="polite">第 1 / 4 页</span>
+          <span id="helpPageLabel" aria-live="polite">第 1 / 5 页</span>
           <button type="button" class="btn btn-outline btn-sm" id="helpNextBtn" onclick="changeHelpPage(1)">下一页 →</button>
         </div>
 
         <div class="help-page" data-help-page="0">
-        <div class="parse-help-section">
-          <div class="parse-help-title">微信群消息批量解析（理疗师映射）</div>
-          <div>先在页面右上角「理疗师映射」中添加微信昵称与标准理疗师名称，例如 <code>蓝蓝 → lanlan</code>、<code>AA林宝 → truda</code>。然后粘贴微信群记录：第一行填写店铺编号，后续支持“昵称、发送时间、消息内容”分行，也支持昵称与发送时间合并在同一行；昵称可包含额外前后缀，只要包含映射表中的昵称即可匹配。</div>
-          <div class="parse-help-example"><code>7<br>蓝蓝<br>2026年10月30日 21:08<br>7/100/20/1</code> → <code>lanlan,7,100,20,1,2108</code></div>
-          <div class="parse-help-example"><code>7<br>自信女人<br>2026年10月30日 21:26<br>7/220/60转账</code> → <code>name,7,220,60,场外,转账,2126</code>（需先将“自信女人”映射到标准名称 name）</div>
-          <div>程序按消息发送时间生成订单时间，兼容“2026年11月04日 13:05”“2026/11/04 下午1:05”“2026/11/04 上午9:30”及斜杠日期24小时制格式；未映射昵称、普通文字、下线消息、图片等非订单内容都会忽略。每条有效消息独立识别为一条订单；订单内容会忽略括号、表情及其他无关杂字符，并兼容斜杠、逗号周围多余空格，例如 <code>1/200/60/3）</code> 按 <code>1/200/60/3</code> 识别，不会擅自改动序号、金额、时长或房间号。支持 <code>序号/金额/时长转账</code> 紧连写法，自动识别为场外银行转账订单。 v182新增短格式 <code>序号/数字/数字约</code>：按较大数值识别金额、较小数值识别时长，并以微信消息时间作为开始时间；带“约”自动增加场外自约标记。无“约”时也按场外订单处理。</div>
-        </div>
-
-        <div class="parse-help-section">
-          <div class="parse-help-title">① 普通订单</div>
-          <div><code>店铺编号 理疗师,序号,金额,时长,房间/标记,备注,客人尾号,时间</code></div>
-          <div class="parse-help-example"><code>4 daisy,3,160,60,4,1107</code> → 4号店 daisy 第3单，¥160，60分钟，4号房，11:07。</div>
-          <div><code>4 neha,160,60,3538(jbh),1500</code> → 无需填写序号，系统自动分配；金额160、60分钟、尾号3538；括号中的 <code>j/b/h</code> 分别识别为接线、银行转账、1瓶蜂蜜；15:00正式订单。括号中支持六类标记 <code>y/b/c/v/j/h</code> 任意组合，连续多个 <code>h</code> 按瓶数计数。</div>
-          <div>金额和时长可以互换；两项都是数字时，较大的数字识别为金额，较小的数字识别为时长。</div>
           <div class="parse-help-section">
-            <div class="parse-help-title">完整订单字段说明（普通订单）</div>
-            <div><code>店铺 理疗师,序号,金额,时长,房间/标记,备注,客人尾号,时间</code></div>
-            <div class="parse-help-example"><code>4 adela,2,130,30,1,,,1429</code> → 店铺4；理疗师adela；序号2；金额130；时长30分钟；1号房；备注为空；客人尾号为空；14:29。</div>
-            <div>房间/标记、备注、客人尾号是可选信息，不代表每笔订单都必须填写。若备注和尾号为空、但后面仍有时间，就要保留空字段分隔符，避免时间被错当成备注或尾号。</div>
-            <div>例如 <code>1,,,1429</code> 中，房间为1，后面两个空字段分别代表“备注为空”和“客人尾号为空”，最后的1429才是时间。三个逗号只是字段分隔符，不是额外的订单内容。</div>
-            <div>标签 <code>y/b/c/v/j/h</code> 可与房间号组合写在房间/标记字段中，例如 <code>2v</code>、<code>1bchh</code>；每个 <code>h</code> 代表一瓶蜂蜜。删除订单则无需填写这些字段，只需 <code>店铺 理疗师,序号,x</code>。</div>
+            <div class="parse-help-title">1. 录入订单：基本格式</div>
+            <div><strong>普通订单：</strong><code>店铺编号 理疗师,序号,金额,时长,房间/标记,备注,客人尾号,时间</code></div>
+            <div class="parse-help-example"><code>4 daisy,3,160,60,4,1107</code> → 店铺编号4（显示为41号店）、理疗师daisy、第3单、金额160、60分钟、4号房、11:07。</div>
+            <div><strong>完整格式示例：</strong><code>7 lenabook,1,250,60,过来选,3457v,1200</code>。字段依次是店铺、理疗师/预约标记、序号、金额、时长、房间或标记/备注、客人尾号、时间。book 表示预约。</div>
+            <div><strong>无序号格式：</strong><code>4 neha,160,60,3538(jbh),1500</code>。系统自动分配序号；括号中的 j/b/h 分别表示接线、银行转账和一瓶蜂蜜。</div>
+            <div>金额和时长可以互换；金额可留空、写 <code>-</code> 或 <code>x</code> 表示价格未知。字段允许留空，但要保留逗号分隔符。时间常用四位 HHMM，例如 <code>1500</code>；三位旧时间也兼容，1～2位数字表示从解析时刻起的分钟偏移。</div>
           </div>
-          <div>金额可留空、写 <code>-</code> 或 <code>x</code>，表示价格未知。时间通常写4位 <code>HHMM</code>；2位数字表示从解析时刻起 N 分钟后，跨午夜会自动顺延日期。</div>
-          <div>订单序号在订单列表、时间轴和查询结果中显示为圆圈数字，例如1→①、2→②、10→⑩，11及以上依次显示⑾、⑿、⒀等；房间号使用六角括号，例如1号房显示为〔1〕、10号房显示为〔10〕。这只是显示方式，录入格式和内部数据不变。</div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">2. 房间、标记与预约</div>
+            <div>标记可组合使用：<code>y</code> 自约📞、<code>b</code> 银行🏦、<code>c</code> 刷卡💳、<code>v</code> VIP♛、<code>j</code> 电话☎️、<code>h</code> 蜂蜜🍯。每个 h 代表一瓶，例如 <code>2v</code>、<code>1bchh</code>。</div>
+            <div>预约订单的理疗师名称带 <code>book</code>，例如 <code>4 adelabook,1,1955</code>。未填写金额时价格未知；未填写时长时按60分钟。预约不进入真实订单轮转，也不会被 confirm 批量确认。</div>
+            <div>客人尾号一般是四位数字；四位时间写在时间字段。完整字段位置优先于尾号启发式判断。普通订单的房间/标记、备注、尾号均可选。</div>
+          </div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">3. 微信群记录导入</div>
+            <div>先在「理疗师昵称映射」中设置微信昵称与标准理疗师名称，再粘贴群记录。第一行填写店铺编号，后续按昵称、发送时间、消息内容排列；程序按微信消息时间生成订单。昵称包含映射关键词即可匹配。</div>
+            <div class="parse-help-example"><code>7<br>蓝蓝<br>2026年11月04日 13:05<br>7/100/20/1</code> → 按映射表将蓝蓝转换为标准理疗师名称，并生成13:05订单。</div>
+            <div>支持常见中文日期、上午/下午和24小时制时间；无映射昵称、普通聊天文字及非订单消息会忽略。微信映射与 Excel 图表中的 Remark ↔ Flora 对照表是两套独立配置。</div>
+          </div>
         </div>
 
-        <div class="parse-help-section">
-          <div class="parse-help-title">② 简写订单与预约</div>
-          <div><code>4 daisy,1,1220</code> → 按简写规则自动补价格和时长。</div>
-          <div><code>4 eva,3311,1840</code> → 3311按客人尾号处理，自动寻找未使用的序号。</div>
-          <div>理疗师名中含 <code>book</code> 即按预约处理。例：<code>4 adelabook,1,1955</code>。</div>
-          <div>完整预约示例：<code>4 evabook,1,160,60,6789,2100</code> → 4号店 eva 预约，序号1、¥160、60分钟、客人尾号6789、21:00到。3～4位独立数字尾号或尾号后附六类标记 <code>y/b/c/v/j/h</code>（如 <code>6789cvjbh</code>）均识别为尾号加标签，不会当作房间号；完整字段中四位数字紧接任一标记（如 <code>1289b</code>）也一定是尾号，不是房号。</div>
-          <div><code>7 lanlan,2553,1300</code> 或 <code>7 lanlan,1300</code> → 7号店 lanlan 的13:00预约；尾号可选，价格和时长未知。</div>
-          <div>未知时长的预约在轨道上按60分钟占位；明细列表显示“未知时长”，避免误认为服务时长已确定。明细页默认只显示当天，点击列表末尾可打开全部明细。</div>
-        </div>
-
-        </div>
         <div class="help-page hidden" data-help-page="1">
-        <div class="parse-help-section">
-          <div class="parse-help-title">③ 订单查询命令（check）——参数、用法与结果</div>
-          <div><strong>check 只查询现有订单，不新增、修改或删除数据。</strong>按用途选择下面一种命令格式；日期不写年份时按当前年份解释。</div>
-          <div><strong>一、今日时段查询</strong></div>
-          <div><code>check</code> → 查询今天09:30～21:30；<code>check 0930-2130</code> 或 <code>check 0930 2130</code> → 查询指定起止时段；<code>check 2100 0200</code> → 支持跨午夜；<code>check 0900</code> 或 <code>check 0900-</code> → 从09:00查询到执行命令时的当前时间。</div>
-          <div><strong>参数含义：</strong>时间使用24小时制四位 HHMM；第一个时间是开始，第二个时间是结束。只写开始时间时，结束时间自动取当前时间。此类时段查询只统计真实订单，不包含 book 预约。</div>
-          <div><strong>查询结果：</strong>显示该时段订单数、金额总额及各店铺统计；结果同步到「今日概览」。价格未知的订单计入笔数，不计入金额。</div>
-          <div><strong>二、日期、店铺、理疗师查询</strong></div>
-          <div><code>check</code> + 日期 → 查询指定日期全部订单；<code>check 7</code> → 查询今天7号店；<code>check truda</code> → 查询今天理疗师 truda 的订单；<code>check 10-1 truda</code> → 查询10月1日 truda 的订单；<code>check 10-5 10-20 qian</code> → 查询10月5日至10月20日（含首尾）qian 的订单。</div>
-          <div><strong>参数含义：</strong>日期可写 <code>10-1</code>、<code>10/1</code>、<code>10月1日</code> 或 <code>2026-10-1</code>；单独数字表示店铺编号；日期后面的文字表示理疗师姓名。日期范围查询需要提供理疗师姓名。</div>
-          <div><strong>查询结果：</strong>单日/理疗师查询显示匹配订单详情；日期范围＋理疗师查询按日期分组，每天显示订单数和金额，再列出订单详情。日期范围按新到旧排列，详情按时间排序。</div>
-          <div><strong>三、预约查询</strong></div>
-          <div><code>check book</code> 或 <code>check books</code> → 查询所有日期的 book 预约；<code>check 10-20 book</code> → 查询指定日期的 book 预约。</div>
-          <div><strong>查询结果：</strong>按日期从新到旧、同一天按预约时间从晚到早排列。普通 Click 回填可编辑订单文本；Shift+Click 回填广告预约描述。</div>
-          <div><strong>四、标签查询（可带日期、店铺和理疗师）</strong></div>
-          <div><code>check y/b/c/v/j/h [日期 [结束日期]] [店铺号] [理疗师]</code></div>
-          <div>标签代码：<code>y</code>自约、<code>b</code>银行、<code>c</code>刷卡、<code>v</code>VIP、<code>j</code>接线、<code>h</code>蜂蜜。例：<code>check y</code> 查今天所有自约；<code>check b 10-7</code> 查10月7日全部店铺银行订单；<code>check b 10-5 10-10 7</code> 查10月5日至10日7号店银行订单；<code>check h 11-1 11-10 7 daisy</code> 查指定日期范围、店铺和理疗师的蜂蜜订单。</div>
-          <div><strong>参数含义：</strong>标签后可不写日期（默认所有日期）；写一个日期表示单日，写两个日期表示包含首尾的日期范围；日期之后的第一个纯数字作为店铺号，其余文字作为理疗师姓名。店铺号和理疗师均可省略。</div>
-          <div><strong>组合标签采用 AND 逻辑：</strong><code>check bc</code>、<code>check jvbh</code> 要求同一订单同时具有命令中的全部标签。旧命令 <code>check by</code> 保留兼容含义，匹配银行、自约或场外订单。</div>
-          <div><strong>查询结果：</strong>按日期从新到旧汇总；每天先显示订单数和金额，再按理疗师分组并显示详情。可切换顶部汇总指标为订单数或金额。价格未知订单计入笔数、不计入金额；无匹配结果时显示空结果提示。</div>
-          <div><strong>五、序号缺口查询</strong></div>
-          <div><code>check #</code> → 检查所有日期；<code>check # 10-17</code> → 只检查指定日期；<code>check # daisy</code> → 只检查指定理疗师；<code>check # 10-17 daisy</code> → 同时指定日期和理疗师。多位理疗师可用逗号分隔。</div>
-          <div><strong>查询结果：</strong>按日期＋店铺＋理疗师分组，显示缺失序号及前后相邻订单时间；结果过多时分页显示。</div>
-          <div><strong>六、结果排序与分页</strong></div>
-          <div>按天汇总的结果日期从新到旧；标签查询按理疗师分组，组内订单按时间从晚到早；预约查询按预约时间从晚到早。普通查询结果超过30项时分页；按天汇总的分页不会拆开同一天的订单。</div>
-        </div>
-        <div class="parse-help-section">
-          <div class="parse-help-title">check 版本补充与特殊规则</div>
-          <div><strong>check 专门用于查询订单及标签，不绘制 chart 图表。</strong>下面的时段、日期、理疗师、店铺、book 与标签查询均使用 check 命令。</div>
-          <div><code>check</code> → 等同于 <code>check 0930 2130</code>，统计今天09:30～21:30的非 book 订单总数、总金额和各店数据。</div>
-          <div><code>check 0930-2130</code>、<code>check 0930 2130</code> → 统计指定时段；<code>check 2100 0200</code> → 支持跨午夜，统计当日21:00至次日02:00；<code>check 0900</code> 或 <code>check 0900-</code> → 从09:00统计到当前时间。</div>
-          <div>时段统计会显示在解析结果和「今日概览[D]」中；每家店卡片下方紧跟该店理疗师列表，并可切换“订单数/金额”一次显示一种指标。可用 <code>Ctrl+,</code> / <code>Ctrl+.</code> 切换日期，<code>Ctrl+M</code> 回到今天。book预约不计入时段统计。</div>
-          <div><code>check book</code> 或 <code>check books</code> → 查询所有日期的预约，按日期从新到旧、同一天按时间从晚到早排列；<code>check 10-20 book</code> → 查询指定日期的预约。</div>
-          <div><code>check nextbook</code> → 只查询当前时间以后尚未开始的预约，按开始时间从近到远排列；录入区快捷命令“近期预约”会直接运行此查询。</div>
-          <div><strong>v207：覆盖订单视觉提醒。</strong>解析预览时自动检查是否会按现有去重规则覆盖已有订单；将被覆盖的行以浅橙色背景、橙色边线及“⚠ 将覆盖已有订单”提示显示，不增加确认步骤，不改变原有新增/更新逻辑。</div>
-          <div><strong>v209：理疗师排名与标签柱图、覆盖订单对比、专属静态虚线边框。</strong>理疗师统计前四名和后四名只统计真实订单，排除所有 book 预约；新增 <code>chart y/b/c/j/v/h 月-日 月-日 店铺</code> 标签汇总柱图，按理疗师统计订单笔数并降序排列；覆盖订单预览增加新旧字段对比；“专属”订单取消动态效果，改用保留原颜色的静态虚线边框。</div>
-          <div><strong>v210：标签汇总柱图支持省略店铺号。</strong>例如 <code>chart h 11-1 11-10</code> 默认统计全部店铺；末尾提供店铺号时仍只统计指定店铺。y/b/c/j/v/h 及组合标志均适用。</div>
-          <div><strong>v211：帮助分页与预约备注回填修复。</strong>修复 Ctrl+H 第3页被错误嵌套、无法正常显示的问题；补充 check/chart 参数说明、示例和结果解释。预约 book 普通 Click 回填时保留没有尾号的标记备注，例如 <code>5 chatgptbook,1,,,y专属,2048,x</code>；重新解析后保留 y 标记及专属备注。</div>
-          <div><strong>v212：帮助分页、专属虚线与预约回填增强。</strong>Ctrl+H 调整为四个独立页面：录入与预约、check 查询、chart 图表、删除及快捷键；第三页完整说明 chart 参数和图表结果，第四页收纳其他操作。含“专属”的 book 色块改用静态长虚线，线段更长、间隔更大，边框颜色保持原值。book 普通 Click 回填时，即使旧订单只保存“专属”备注，也会规范回填为 <code>y专属</code>，例如 <code>5 chatgptbook,1,,,y专属,2048,x</code>。</div>
-          <div><strong>v214：补充 clear book 预约清理的完整培训说明。</strong>说明清理过期预约与指定日期全部预约的区别、命令格式、预览列表、勾选/取消勾选、Ctrl+Enter确认、无匹配结果及普通订单不受影响等操作步骤。</div>
-          <div><strong>v218：时间轴黄色色块文字对比度优化。</strong>订单仅在开始前15分钟内显示黄色底色，同时将字体改为深色，提升可读性；正在进行的普通订单绿色、预约订单蓝色，结束后灰色，均保持原有字体颜色。</div>
-          <div><strong>v217：时间轴黄色状态修正。</strong>黄色只表示即将开始：订单开始前15分钟内变黄并加深边框；开始后普通订单恢复原绿色，预约订单恢复原蓝色；色块右侧完全越过当前时间红线后转灰。专属订单始终保留虚线边框。</div>
-          <div><strong>v216：时间轴订单临近开始与结束状态颜色统一。</strong>所有普通订单和 book 预约在开始前15分钟进入黄色，并在服务进行期间持续黄色；当订单结束、色块右侧完全越过当前时间红线后转为灰色。黄色阶段连续且只出现一次，不闪烁、不重复变色；含“专属”的订单同步加深虚线边框颜色，继续保留专属虚线样式。</div>
-          <div><strong>v215：订单序号与房号显示样式互换。</strong>订单序号在今日待处理列表、时间轴和订单查询结果中改用圆圈数字①～⑩；房号改用六角括号〔1〕、〔2〕等显示。仅调整视觉表现，不改变订单录入、解析、存储和编辑格式。</div>
-          <div><strong>v222：自动滚动触发条件收紧。</strong>仅在浏览器窗口/页面重新获得焦点时，自动聚焦录入框并定位一次；按 <code>Ctrl+T</code> 解析时，自动定位一次。普通页面浏览、上下滚动、数据刷新、切换查看信息及 <code>Ctrl+Enter</code> 确认均不再触发自动滚动，避免阅读过程中页面自行跳动。</div>
-          <div><strong>v234：首页“预约队列（按理疗师）”与“4号店理疗师队列”标题栏统一为白底、左侧图标标题、右侧独立折叠按钮；“今天要处理”默认折叠。新增无序号正式订单格式 <code>neha,160,60,3538(jbh),1500</code>，自动分配序号，将括号内六类状态标记写入订单字段，尾号与蜂蜜数量均保留。</strong></div>
-          <div><strong>v233：删除指令简化、说明页修复与完整订单格式说明。</strong>删除订单统一只依据日期、店铺、理疗师姓名和序号；末尾为 <code>x</code> 时，金额、时长、房间、标记、备注、尾号及时间等中间字段全部忽略，最简格式为 <code>4 daisybook,3,x</code>。修复固定格式订单解析中的蜂蜜数量变量初始化。修复说明页第3、4页脱离统一字体容器的问题，并增加普通订单完整字段位置及空字段示例说明。</div>
-          <div><strong>v237：队列命令改为 <code>set</code>。<code>set 1 2</code> 将当前第1位移到第2位之后；<code>set kitty 5</code> 将 Kitty 临时安排到第5位之后；<code>set kitty out</code> 将其移到队列右侧的“离开”区域；<code>set kitty in</code> 手动召回。离开人员接到新正式订单后自动返回正常队列，并按该订单接单时间排序。数字位置调整在下一笔正式订单后自动解除；book预约和取消订单不触发恢复。</strong></div>
-          <div><strong>v232：预约队列（按理疗师）整体可折叠；折叠期间暂停未来预约轨道重绘，展开时立即刷新。v231：白班新理疗师队列、对照表 JSON 与快捷命令。</strong>白班队列从09:00开始计入正式订单；某店此前72小时未出现的理疗师，若今天09:00-23:59在该店重新接到正式订单（非book、非取消），以该订单开始时间作为新入列时间并排到队尾。Ctrl+E 的 Remark ↔ Flora 理疗师对照表改为 JSON 对象，可导入/导出独立 JSON 文件，人员调整只需修改对应键值。4号理疗室理疗师队列改为可折叠白色标题栏、前置图标和灰色内容区。录入框下新增五个快捷命令：锁定显示（check 0930 当前时间）、过期清理（clear book）、蜂蜜统计（本月1日至今天）、接下预约（check nextbook）、明天预约（明日 book）。快捷按钮点击后直接执行，不会主动聚焦或滚动页面。</div>
-        <div><strong>v230：查询列表滚动、蜂蜜数量与 Click 回填修复。</strong>移除每2秒执行的后台滚动校正，时间轴和理疗师队列仍按原频率刷新，但后台刷新不再主动移动页面。蜂蜜标记 h 支持连续重复，每个 h 计为一瓶；check h 汇总瓶数，check hh / hhh 等按最低瓶数筛选。check 订单序号放大。普通订单列表 Click 回填时分别保留房间/标记、备注和尾号，并支持含空格备注再次解析。</div>
-          <div><strong>v228：队列内容变化检测。</strong>理疗师队列仍每2秒检查并保持实时状态，但只有队列实际显示内容变化时才更新对应DOM；内容不变时不再反复重写首页队列、时间轴内队列和理疗师统计队列。</div>理疗师队列仍每2秒检查并保持实时状态，但只有队列实际显示内容变化时才更新对应DOM；内容不变时不再反复重写首页队列、时间轴内队列和理疗师统计队列。录入与 check 结果区域也加入滚动锚定保护，尽量避免 Safari 在执行 <code>check h</code> 或输入订单时把页面带到列表中间或预约队列。不会自动滚动页面，也不改变队列排序和订单逻辑。</div>
-          <div><strong>v227：恢复时间轴与理疗师队列实时刷新。</strong>时间轴继续每2秒更新，理疗师队列独立每2秒更新；不因当前滚动位置或所在选项卡而跳转页面。时间轴刷新复用现有店铺卡片，不再每次删除并重建其他店铺卡片；今日预约队列保留固定标题/坐标节点，只更新轨道内容。理疗师队列刷新保留各店铺队列的折叠状态，避免每次刷新自动展开。</div>
-          <div><strong>v226：焦点与后台刷新优化。</strong>录入框只在页面初始化时自动聚焦一次；切回浏览器窗口、按 Ctrl+T 解析及 clear book 预览时不再重复调用 focus()。保留用户主动点击订单色块/列表回填时的焦点与光标定位行为。移除每2秒时间轴全量重绘及每30秒队列全量重绘，避免后台反复改动页面内容、造成滚动锚定位置变化并减少后台开销；进入相应页面或正常数据更新时仍会刷新。</div>
-          <div><strong>v225：页面滚动与队列状态优化。</strong>取消程序主动控制页面/窗口滚动和定位的代码；点击、输入、操作“今天要处理”列表及按 <code>Ctrl+T</code> 解析时，程序均不主动移动页面。保留 clear book 预览完成、订单回填及从其他程序切回时的 textarea 焦点功能，不改变原光标位置；浏览器自身的默认滚动行为不干预。理疗师忙碌状态改为显示实际房间号（如“服务中①”），有预约时另起一行；色块宽度和颜色不变，仅允许高度增加。</div>
-          <div><strong>v224：长列表点击稳定性修复。</strong><code>check book</code> / <code>check books</code> 等查询结果中，普通点击或 Shift+点击订单只回填/复制内容，不再强制聚焦录入框；保留列表当前滚动位置，避免长列表点击底部记录时页面跳回顶部。时间轴色块及其他原有回填操作保持原行为。</div>
-          <div><strong>v223：焦点、队列与预约解析优化。</strong>从其他程序切回窗口时只聚焦录入框，不滚动页面；当时 Ctrl+T 曾保留主动滚动，现已由 v225 完全取消。取消其他自动移动显示窗口的代码。理疗师队列统一使用绿色（正在进行）、灰色（已完成/无近期订单）、蓝色（预约）色义；白班排序忽略当天00:00～09:29订单，09:30起才更新白班顺序。完整空字段预约如 <code>7 lily,,,60,0298,1440</code> 按60分钟时长、0298客人尾号识别；四位数字紧接六类标记必定是尾号。序号显示扩展至⑾～⒇。</div>
-          <div><strong>v221：理疗师队列显示优化。</strong>首页4号店队列默认展开，可折叠；Ctrl+X理疗室时间轴中，每家店铺的时间轴上方显示该店理疗师队列，默认展开且可折叠。队列使用亮色色块、深色文字和深色边框，提高辨识度。</div>
-          <div><strong>v220：理疗师队列改为历史订单实时排序。</strong>名单只读取最近72小时出现过的实际理疗师；店铺归属只参考最近168小时的实际订单，以最近一次接单店铺为准。队列按每位理疗师最近一笔金额大于50的实际订单时间从早到晚排列，不累计订单数量；金额≤50、book预约和已取消订单不改变排序。首页预约队列下方显示4号店单行可折叠色块队列，忙碌、空闲及有预约使用不同颜色；其他店铺在 Ctrl+Q 的“各店理疗师队列”视图查看。Ctrl+Q 可切换本周、上周、月度排名、汇总表和各店队列。Ctrl+T及浏览器窗口重新获得焦点时恢复输入框光标并按各自规则定位；Ctrl+Enter不触发自动滚动。clear book 只列出预约结束时间已到达或早于当前时间的预约；未填写时长按60分钟。</div>
-          <div><strong>v213：标签图表统一显示汇总卡和双指标切换。</strong><code>chart y/b/c/j/v/h 月-日 月-日 [店铺]</code> 均显示有效订单、有效金额、理疗师人数，并可切换订单数排名与金额排名；所有标志及其组合遵循同一筛选、汇总和排序规则。</div>
-          <div><strong>v208：专属订单边框视觉试验。</strong>此版本曾使用动态边框；v209 已按要求取消动画并改为静态虚线边框。</div>
-          <div><strong>v206：<code>clear book</code> 或 <code>clear books</code></strong> → 先列出所有已结束 book 预约（开始时间+时长≤当前时间；未知时长按60分钟），按需取消勾选，再按 Ctrl+Enter 确认清除；<code>clear book 11-1</code> → 预览并清除指定日期（11月1日）的全部 book 预约，不限预约时间。预览阶段不会修改数据，普通订单不受影响。</div>
-          <div><code>check truda</code> → 今天 truda 的普通订单和预约；<code>check 7</code> → 今天7号店全部订单；<code>check 10-1 truda</code> → 指定日期理疗师订单。</div>
-          <div>查询结果每条订单紧凑显示一行；顶部汇总订单总数、金额总额、序号范围与缺号情况，以及订单时间跨度。未知价格计入订单数，不计入金额总额。</div>
-          <div>v152：所有 <code>check</code> 查询结果统一按日期、时间、订单序号逆序排列，最新时间显示在最上面；预约轨道未来仍为蓝色、接近时间为黄色、进行中改为浅冷色青蓝、已完成保持更透明的灰色，普通订单的绿色/灰色规则不变。</div>
-          <div><strong>接线订单标记 j：</strong><code>4 name/5/240/60/2/接线/2020</code> 或 <code>4 name/5/240/60/2接线,2020</code> 均规范为 <code>4 name/5/240/60/2j,2020</code>，显示红色电话图标 <code>☎</code>。点击订单回填时保留 j 标记。</div>
-          <div><strong>自约标记 y：</strong>房间字段可写 <code>2y</code>、<code>2自约</code> 或单独写 <code>/自约</code>，规范后会保留 <code>y</code>；显示图标 <code>📞</code>，界面不再附加“自约”文字。点击自约订单回填录入框时会保留标记，例如 <code>7 mia,2,200,60,2y,1206</code>。</div>
-          <div><strong>银行转账 b、刷卡 c、VIP v、接线 j、自约 y、蜂蜜 h：</strong>六类标记支持任意顺序、连续组合或用空格分隔，例如 <code>2vlp自约刷卡转账接线</code>、<code>2接线 vip 刷卡</code>，也支持独立字段 <code>/vip刷卡转账接线自约</code>。<code>vlp</code> 自动按 <code>vip</code> 识别。对应图标为 <code>🏦</code>、<code>💳</code>、<code>♛</code>、<code>☎</code>、<code>📞</code>、<code>🍯</code>；自约只显示 <code>📞</code>。b/c/v/j/y 按状态记录；蜂蜜 <code>h</code> 可连续重复（<code>hh</code>、<code>hhh</code>），每个 h 代表一瓶，内部保留瓶数，支持 <code>check b/c/v/j/y/h</code> 单标记查询；<code>check hh</code> 可筛选至少2瓶蜂蜜的订单。3-4位尾号后也可直接带标记，例如 <code>1289b</code> 表示客人尾号1289并使用银行转账，不会把1289误识别成房号。VIP 的 <code>♛</code> 显示放大约1.8倍。</div>
-          <div><strong>色块 Shift 点击（v179）：</strong>按住 Shift 并左键点击普通订单，会清空录入框并复制客户可读描述，例如 <code>4号店 理疗师neha 序号2 金额250 时长60 理疗室1 ♛ 11:32开始</code>；VIP用皇冠♛显示。预约订单继续使用原有广告预约描述；日期不是今天时附带预约日期。普通左键行为不变。</div>
-          <div><strong>微信群自然语言预约（v173）：</strong>“半小时左右预约”“十分钟左右有约”“20分钟左右预约”等相对时间，以该条微信消息时间为基准计算；明确钟点如“5:00预约”按消息时段推断下午/上午，例如15:43收到“5:00预约”识别为17:00。</div>
-          <div><strong>预约尾号与时长（v173）：</strong>金额为空时，跳过空占位字段，将第一个非空数字识别为时长；例如 <code>7 lily,,,60,0298,1440</code> 中60为停留时长、0298为客人尾号，不作为理疗室号。</div>
-          <div><strong>理疗室位置的4位数字（v176）：</strong>出现在理疗室位置的4位纯数字一律识别为客人电话尾号，不作为房间号。例如 <code>4 gui,,,30,4389,1220</code> 表示30分钟、客人尾号4389、12:20到，房间留空。</div>
-          <div><strong>省略序号的空字段格式（v177）：</strong>例如 <code>4 gui,,,30,4389,12</code>，序号由系统按店铺、理疗师及日期自动分配，金额未知，时长30分钟，客人尾号4389，最后的12表示从解析时刻起12分钟后到；理疗室留空。</div>
-          <div><strong>v178 逆向字段解析：</strong>从末尾时间向前识别。4位数字为HHMM，3位数字为旧式HMM，1～2位数字为当前时间后N分钟；时间前4位数字为客人尾号，1位数字为理疗室，2位数字按5分钟梯度判断时长，非5分钟梯度优先作为理疗室；3位数字为备注。金额通常为50以上的2～3位数，也允许4位数（4位金额要求时长至少3位）；低于50不作为金额。时长缺失、金额缺失分别显示未知；序号缺失自动分配。
-          <div><strong>check book Shift+左键（v176）：</strong>在预约查询结果中按住 Shift 点击预约条目，会像轨道预约块一样清空输入框、填入客人友好的预约描述，并复制相同内容到剪贴板；普通左键行为保持不变。</div>
-          <div><strong>微信群「外卖」上门订单：</strong>消息 <code>5/外卖</code> 自动按序号5、$350、60分钟解析，房间号留空；消息 <code>5/外卖转帐</code> 自动增加银行转账标记 <code>b</code>。外卖订单最低按350元/60分钟处理，允许在外卖后组合 <code>b/y/c/v/j/h</code>，例如 <code>5/外卖转帐ycvjh</code>；微信消息时间自动作为最后一个字段。</div>
-          <div><strong>多标记组合与场外订单：</strong><code>by</code> 仍表示银行转账、自约和场外订单。<code>j/v/b/c/y/h</code> 可以单独使用或任意组合，例如 <code>jv</code>、<code>bc</code>、<code>jvbc</code>；输入 <code>5 qian,1,400,60,jv,0018</code> 会识别为接线＋VIP，店铺编号不影响标签识别。标签可同时记录银行转账、刷卡等支付方式。真实订单的序号、金额、时长、房间/标记、开始时间均会保留。</div>
-          <div><code>check 10-5 10-20 qian</code> → 查询理疗师 qian 在10月5日至10月20日（含起止日）的订单，按日期从新到旧分组；每天先显示当日订单数与金额合计，再列出当日订单详情。</div>
-          <div><strong>仅名字和时间的短结构：</strong><code>4 kitty,1100</code> 表示未来11:00的自约；<code>4 kitty,20</code> 表示从解析时刻起20分钟后的自约。目标时刻仍在未来时会自动补上 <code>kittybook</code> 名称和序号，价格、真实时长及客人尾号保持未知/空白（轨道以60分钟占位）。点击轨道色块会回填完整的序号、空金额/时长、<code>y</code>、时间和末尾 <code>x</code>，方便后续处理。过去或无效的绝对时刻仍按解析失败条目处理，不会计入真实订单。</div>
-          <div><code>check y</code> 查询自约，<code>check b</code> 查询银行转账，<code>check c</code> 查询刷卡，<code>check v</code> 查询 VIP，<code>check j</code> 查询接线订单，<code>check h</code> 查询蜂蜜订单；这些查询及 <code>check bcvjh</code> 等组合查询均按日期从新到旧逐日汇总；每位理疗师标题后显示当前查询标记图标及该组订单数量，每日先显示订单数和金额，再按理疗师姓名分组显示详情，并保留右侧安全边距；支持 <code>check bc</code>、<code>check jvbch</code> 等标签组合查询，组合查询要求订单同时具备命令中列出的全部标签。同一订单若有 <code>b+c</code>，会同时出现在 <code>check b</code>、<code>check c</code> 和 <code>check bc</code> 中。查询共用日期、日期范围、店铺和理疗师筛选逻辑。<code>by</code> 旧格式仍兼容银行转账、自约和场外查询。顶部可切换订单总数或金额总和；未知价格计入订单数，不计入金额。</div>
-          <div><strong>标记查询日期与店铺筛选（v182）：</strong><code>check b 10-5 10-10 7</code> 查询10月5日至10月10日7号店银行转账订单；<code>check b 10-5 10-10</code> 查询该日期范围内所有店铺的银行转账订单；<code>check b 10-7</code> 查询10月7日所有店铺的银行转账订单；<code>check b 7</code> 查询今天7号店银行转账订单。日期范围、单日、店铺和理疗师筛选可组合使用。结果先显示总订单数及金额，再按日期从新到旧显示每日汇总，详情按理疗师姓名分组、组内按时间从晚到早排列。没有匹配订单时仍显示查询标题及空结果提示。</div>
-                    <div><strong>v193：完整固定格式订单前置解析。</strong>完整的“理疗师,序号,金额,时长,房号与标志,时间”五字段订单在所有简写及智能解析规则之前优先识别；严格按字段位置解析，金额、时长、房号标志和时间不再参与尾号推测。例如 <code>4 alma,7,1000,300,2v,0927</code> → 序号7、金额$1000、时长300分钟、2号房＋VIP、09:27；不会将1000误判为电话尾号，也不会因过去时间自动追加book。字段缺失或格式不完整时仍沿用原有智能解析。<br></div>
-          <div><strong>v195：理疗师姓名符号兼容。</strong>姓名内部允许使用全角括号 <code>（）</code>、连字符 <code>-</code>、@、方括号 <code>[]</code>、六角括号 <code>〔〕</code> 和加号 <code>+</code>，原样保留，不影响完整订单、无序号预约、紧凑格式及删除格式解析。例如 <code>4 西西（Daisy广告）,150,30,0247,1710</code> 会识别为金额150、时长30分钟、尾号0247、17:10的预约订单。<br></div>
-          <div><strong>v196：预约空字段、尾号备注及 book 姓名删除修复。</strong>支持 <code>千千irenebook,1,,,4040,1713</code>，空金额/时长保持未知，4040识别为尾号；四位尾号后接 <code>()</code> 或 <code>（备注）</code> 时强制识别为预约，括号内容保存为备注并在 Shift+Click 回填中显示。末尾 <code>x</code> 删除指令优先于固定格式解析，因此真实姓名 <code>book</code> 也可按姓名和序号删除。<br></div>
-          <div><strong>v197：无序号金额/时长/尾号括号备注预约格式。</strong>支持 <code>maggie,330,60,3431(专属),1330</code>，自动分配序号并识别金额330、时长60分钟、尾号3431、备注专属及13:30预约时间；Shift+Click 使用“maggie广告预约，尾号3431，备注(专属)，金额330，时长60，13:30到”格式。<br></div>
-          <div><strong>v198：四位尾号括号备注无序号预约及 Click 备注保留。</strong>支持 <code>adela,9991(角色扮演空姐内衣),1830</code>，四位数字后紧跟半角/全角括号时，强制识别为尾号和备注；自动分配序号，金额/时长未知，18:30到。普通 Click 回填预约订单时，将备注保留在尾号后的括号中，并保留末尾 <code>,x</code> 以便修改后重新解析提交。<br></div>
-          <div><strong>v199：Shift+Click 广告预约姓名映射显示。</strong>广告预约 Shift+Click 回显时，根据理疗师映射表反向查找对应的微信昵称并显示；例如映射表 <code>AA林宝 → truda</code>，则 <code>truda</code> 的广告预约描述显示为 <code>AA林宝广告预约</code>。只改变 Shift+Click 回显姓名；普通 Click、订单原始姓名、列表显示及保存数据均不变。未找到映射时仍显示原姓名。<br></div>
-          <div><strong>v200：check 查询汇总标题理疗师姓名映射显示。</strong>在 <code>check b/c/v/j/h/y</code> 及组合标签查询的分组汇总标题中，根据理疗师映射表反向查找微信昵称；例如映射表 <code>AA林宝 → truda</code>，汇总标题由 <code>理疗师：truda</code> 显示为 <code>理疗师：AA林宝</code>。只改变汇总标题，不改变订单明细、原始姓名、数量统计、普通 Click 或 Shift+Click 回显。未找到映射时仍显示原姓名。<br></div>
-          <div><strong>v201：普通 Click 统一保留预约备注。</strong>时间轴订单色块与 check 查询列表使用同一回填逻辑；预约订单有尾号和备注时，textarea 回填为“尾号(备注)”，并保留姓名、序号、金额、空字段、时间及末尾 <code>,x</code>，方便修改后重新解析提交。Shift+Click 广告预约描述保持不变。<br></div>
-          <div><strong>v203：时间轴结束边界、快捷替换与日期范围图表增强。</strong>订单结束的那个分钟仍保持原进行中颜色，下一分钟才变灰；预约和实际订单继续沿用各自原透明度。输入 <code>.rent</code> 加空格可替换为 <code>STOUR RENTALS NZ LTD. 06-0665-0505441-00</code>。日期范围图表支持 <code>chart 10-1 10-31 4</code> 仅统计4号店；图表内可切换金额/订单数，两种排名均从高到低；理疗师昵称按映射表显示，姓名、柱条及坐标文字均已放大。</div>
-          <div><strong>v204：修复预约订单备注更新。</strong>当系统已有相同店铺、理疗师及序号的预约订单时，再次输入带有尾号括号备注的订单（例如 <code>4 inabook,1,,,0816(200多次),1830</code>），会将新备注写入原订单；若本次输入没有备注，则保留原备注。</div>
-          <div><strong>v205：过期预约清理与微信外卖默认 VIP。</strong>输入 <code>clear book</code> 清除已结束的 book 预约（开始时间+时长≤当前时间，未知时长按60分钟）；微信聊天记录中的 <code>序号/外卖</code> 自动生成 $350、60分钟、VIP 标记的订单，使用该条微信消息时间，并通过昵称映射转换理疗师姓名。</div>
-                    <div><strong>v202：理疗师排名增加末四名；新增全体理疗师日期范围柱图。</strong>Ctrl+Q 的每个周/月排名显示前四名及不重复的最后四名，末四名使用紧凑行。输入 <code>chart 10-1 10-31</code> 绘制该日期范围内全部理疗师金额排名柱图；末尾加 <code>o</code> 按订单数，<code>m</code> 按金额，鼠标悬停查看订单数、金额及店铺详情；不写年份时按当前年份，跨年范围自动识别。</div>
-          <div><strong>v194：微信蜂蜜消息自动关联。</strong>微信消息内容单独出现“蜂蜜”（例如“送蜂蜜一个”“送蜂蜜了[调皮]”）时，给同一发送者此前最近一笔有效订单增加 <code>h</code> 标记，不新增订单；若订单内容本身带“蜂蜜”，例如 <code>1/200/60/1蜂蜜</code>，则直接识别为蜂蜜订单。<br><strong>预约 Shift+Click 时间格式：</strong>广告预约回填时间统一显示为 <code>HH:MM</code>，例如 <code>13:00到</code>。</div>
-          <div><strong>完整字段与尾号规则（v191）：有数字房间号+vbjhcy标记时整单无尾号；尾号只用于预约单。找不到旧序号时按新单新增。<br>确定订单金额/时长识别（v191）：</strong>当天过去或当前时间的订单不识别尾号；序号后的金额与时长允许顺序变化，按金额较大、时长较小及常见收费梯度判断，兼容 $50/5分钟、$200/$250/$280/$350 每60分钟及中间的整数倍金额。</div>
-<div><strong>修改已有订单（v191）：</strong>输入明确序号及当天已过去的四位时间，例如 <code>4 alma,7,1000,300,3,1427</code>，将按店铺、理疗师、日期和序号修改原订单；找不到原订单时只提示，不会误新增。</div>
-          <div><strong>微信时间格式及昵称模糊匹配兼容（v191）：</strong>支持 <code>2026/11/04 下午1:05</code>、<code>2026/11/04 上午9:30</code>、<code>2026/11/04 13:05</code> 等格式，自动转换为24小时制订单时间。</div>
-          <div><strong>Check 日期星期显示（v184）：</strong>按订单日期自动显示星期，例如 <code>2026-11-03 周二　当日 3 单金额合计 ¥650.00</code>；适用于按天汇总的 Check 查询，不改变订单统计与排序。</div>
-          <div><strong>check 分页：</strong>结果超过30项时分页显示。带按天汇总的查询按完整日期分页，不会在同一天的订单中间断开；必要时单页可超过30项，下一页从另一天开始，并保留当天订单数和金额汇总。</div>
-          <div><code>check #</code> → 检查所有日期、所有店铺和理疗师的序号缺口；<code>check # 10-17</code> → 只检查指定日期；<code>check # daisy</code> → 只检查指定理疗师；<code>check # 10-17 daisy</code> → 同时按日期和理疗师筛选。可用逗号指定多位理疗师。</div>
-          <div>序号缺口按“日期＋店铺＋理疗师”分别检查，显示缺失序号，以及前一个和后一个实际序号的时间；结果超过30处时分页显示。</div>
-          <div>日期支持 <code>10-1</code>、<code>10/1</code>、<code>10月1日</code>、<code>2026-10-1</code>。查询只读取数据，不新增、修改或删除订单。</div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">4. 确认订单：先预览，再执行</div>
+            <div><code>confirm all</code> → 列出所有店铺、所有日期的真实待确认订单。</div>
+            <div><code>confirm 4</code> → 列出店铺编号4（41号店）所有日期的真实待确认订单。</div>
+            <div><code>confirm 11-4 4</code> → 列出当年11月4日、店铺编号4的真实待确认订单。日期格式为月-日。</div>
+            <div>解析后，待确认订单显示在 textarea 下方。每笔订单都有勾选框，默认全选；可以逐笔取消，也可使用全选/取消全选。列表展示日期、店铺、理疗师、序号、时间、金额、时长和房间。</div>
+            <div><strong>只有按 Ctrl+Enter 才会把勾选的真实待确认订单改为已确认。</strong>未勾选订单不变；book 预约、已取消订单和已经确认的订单均不受影响。快捷按钮「确认订单」等同于输入 <code>confirm all</code>，只生成清单，不会直接确认。</div>
+          </div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">5. 41号店理疗师队列</div>
+            <div>店铺编号4映射显示为「41号店」，内部编号仍是4。名单读取最近72小时真实订单；店铺归属参考最近168小时真实订单。book预约和已取消订单不进入队列。正常轮转按最近符合条件的实际接单时间排列；通常金额大于50的订单参与轮转，白班09:00前订单不改变当天轮转。</div>
+            <div>色块状态：绿色表示正在服务，蓝色表示有未来预约，灰色表示空闲/没有近期轮转订单；「离开」区域中的人员不参加正常队列。点击正常队列色块会清空输入框并填入 <code>set 姓名 out</code>；点击离开色块会填入 <code>set 姓名 number</code>，请把 number 替换为目标位置数字。</div>
+            <div>点击色块只填入命令，不执行。按 Ctrl+T 查看调整预览，确认目标和位置无误后按 Ctrl+Enter 执行。</div>
+          </div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">6. set 队列命令</div>
+            <div><code>set ivy 7</code> → 将 Ivy 放在第7位理疗师后面；即使她不在最近72小时名单，也会建立临时占位，并跟随所锚定的队列成员移动。</div>
+            <div><code>set ivy out</code> → 将 Ivy 移至离开区域；<code>set ivy in</code> → 从离开区域召回；<code>set 1 2</code> → 将当前第1位理疗师移动到第2位之后。</div>
+            <div>可在命令前指定店铺编号，例如 <code>set 4 ivy 7</code>。临时占位在接到下一笔真实订单后自动转为正常轮转。离开人员最近一笔真实订单超过72小时名单窗口后自动从 out 清除；从未有过真实订单的手动离开项按离开时间保留72小时。</div>
+            <div><strong>执行流程：</strong>输入命令 → Ctrl+T 解析 → 检查下方队列调整预览 → 勾选该项 → Ctrl+Enter 执行。解析阶段不会改变队列。</div>
+          </div>
         </div>
 
-        </div>
         <div class="help-page hidden" data-help-page="2">
-        <div class="parse-help-section">
-          <div class="parse-help-title">④ 统计图命令（chart）——参数、用法与结果</div>
-          <div><strong>chart 用于生成图表；check 用于查询订单明细和汇总。</strong>两类命令分开使用，chart 不会修改订单数据。</div>
-          <div><strong>一、理疗师最近 N 天折线图</strong></div>
-          <div><code>chart [天数] 理疗师[,理疗师2,理疗师3] [o/m]</code></div>
-          <div>例：<code>chart 7 truda</code> → truda 最近7个日历日（包含今天）的订单数；<code>chart 7 truda,ella o</code> → 比较两位理疗师的订单数；<code>chart 30 truda m</code> → truda 最近30天的金额。</div>
-          <div><strong>参数含义：</strong>天数范围1～365，省略时默认7天；理疗师姓名可写一位或用逗号分隔最多三位；末尾 <code>o</code> 表示 orders（订单数），<code>m</code> 表示 money（金额），省略时默认订单数。</div>
-          <div><strong>图表结果：</strong>按日绘制趋势，可在图表上切换按日、按周、按月汇总；顶部显示所选范围的订单总数和金额。单人图表标注订单数或金额，多人图表按理疗师区分系列。</div>
-          <div><strong>二、指定日期范围理疗师排名柱图</strong></div>
-          <div><code>chart 开始月-日 结束月-日 [店铺号] [o/m]</code></div>
-          <div>例：<code>chart 10-1 10-31</code> → 10月1日至31日全部店铺；<code>chart 10-1 10-31 4</code> → 只统计4号店；<code>chart 10-1 10-31 4 o</code> → 4号店按订单数排名；末尾 <code>m</code> 按金额排名。</div>
-          <div><strong>参数含义：</strong>两个日期均包含在统计范围内；店铺号可省略，省略时统计全部店铺；<code>o</code> 按订单笔数，<code>m</code> 按金额，省略时默认按金额。</div>
-          <div><strong>图表结果：</strong>按理疗师汇总并从高到低排列；图表内可切换“金额排名 / 订单数排名”。悬停柱条可查看订单数、金额及店铺详情。</div>
-          <div><strong>三、标签订单汇总柱图</strong></div>
-          <div><code>chart 标签 [开始月-日] [结束月-日] [店铺号]</code></div>
-          <div>例：<code>chart y 11-2 11-12 7</code> → 统计7号店11月2日至12日的自约订单；<code>chart h 11-1 11-10</code> → 统计11月1日至10日全部店铺的蜂蜜订单。</div>
-          <div><strong>标签代码：</strong><code>y</code>自约、<code>b</code>银行、<code>c</code>刷卡、<code>j</code>接线、<code>v</code>VIP、<code>h</code>蜂蜜。所有标志使用相同图表规则：任一标志都可单独查询，也可组合，例如 <code>chart yv 11-2 11-12 7</code>；组合标志采用同时满足（AND）逻辑。</div>
-          <div><strong>参数含义：</strong>必须提供开始和结束月-日；末尾店铺号可省略，省略时统计全部店铺。未写年份时按当前年份解释；若开始月日大于结束月日，则按跨年范围处理。</div>
-          <div><strong>图表结果与汇总：</strong>图表上方统一显示有效订单、有效金额、理疗师人数；提供“订单数排名 / 金额排名”切换按钮。切换只改变柱图的排序和数值，不改变筛选范围。排除 book 预约和已取消订单；价格未知订单计入有效订单，不计入有效金额；理疗师昵称按映射表显示。</div>
-          <div><strong>四、所有 chart 的共同统计口径</strong></div>
-          <div>统计只包括真实订单，排除 book 预约和已取消订单。价格未知的订单仍计入订单笔数，但不计入金额。日期范围柱图与标签柱图均按理疗师归集；图表只读取数据，不会新增、修改或删除订单。</div>
-        </div>
-
+          <div class="parse-help-section">
+            <div class="parse-help-title">7. check 查询命令</div>
+            <div><code>check book</code> 查询预约；<code>check truda</code> 查询指定理疗师；<code>check 7</code> 查询店铺编号7；<code>check 11-4</code> 查询指定日期。</div>
+            <div><code>check 11-4 truda</code> 按日期和理疗师筛选；<code>check 10-5 10-20 qian</code> 查询日期范围；日期可用月-日格式。</div>
+            <div><code>check b</code>、<code>check c</code>、<code>check v</code>、<code>check j</code>、<code>check h</code>、<code>check y</code> 查询对应标记；标记可组合，例如 <code>check bcvj</code>。<code>check hh</code> 表示至少两瓶蜂蜜。</div>
+            <div><code>check #</code> 检查序号缺口；<code>check # 11-4</code> 限定日期；<code>check # truda</code> 限定理疗师；<code>check # 11-4 truda</code> 同时限定日期和理疗师。结果超过30项时分页。</div>
+            <div>check 只读取订单，不新增、修改或删除。查询结果显示订单状态、金额、时间、时长、房间、尾号和备注；点击订单内容可将其回填到录入框。</div>
+          </div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">8. chart 统计图命令</div>
+            <div><strong>理疗师最近N天折线图：</strong><code>chart 7 truda</code>；多位理疗师用逗号分隔，例如 <code>chart 7 truda,ella o</code>。天数范围1～365，末尾 <code>o</code> 按订单数，<code>m</code> 按金额。</div>
+            <div><strong>日期范围排名柱图：</strong><code>chart 10-1 10-31</code>；加店铺编号只统计该店，例如 <code>chart 10-1 10-31 4 o</code>。</div>
+            <div><strong>标记统计：</strong><code>chart h 11-1 11-10</code>；也可组合标记，例如 <code>chart yv 11-2 11-12 7</code>。末尾可指定店铺编号。</div>
+            <div>图表排除 book 预约和已取消订单；价格未知订单计入订单数，不计入金额。日期范围包含首尾日期；未写年份时按当前年份解释，跨年范围自动识别。</div>
+          </div>
         </div>
 
         <div class="help-page hidden" data-help-page="3">
-        <div class="parse-help-section">
-          <div class="parse-help-title">预约批量清理命令（clear book）</div>
-          <div><strong>用途：</strong>批量清理已经过期的 book 预约，或清理指定日期的全部 book 预约。此命令只处理理疗师名称中含 <code>book</code> 的预约，不会删除普通订单。</div>
-          <div><strong>一、清理已过期预约：</strong>在录入框输入 <code>clear book</code>，也可以输入 <code>clear books</code>，然后按 <code>Ctrl+T</code> 解析。只列出预约结束时间（开始时间+时长）已到达或早于当前时间的订单；未填写时长按60分钟计算。</div>
-          <div>系统会列出所有日期早于今天的 book 预约，以及今天预约开始时间已经过去的 book 预约。今天尚未到预约时间的预约、未来日期的预约不会列出。</div>
-          <div><strong>二、清理指定日期的全部预约：</strong>输入 <code>clear book 11-1</code>，按 <code>Ctrl+T</code> 解析，即预览11月1日当天的全部 book 预约；日期使用“月-日”格式，例如 <code>clear book 10-25</code>。此模式不判断预约时间是否已过，当天所有 book 预约都会列出。</div>
-          <div><strong>三、预览与确认（重要）：</strong>解析后会显示待清除列表，匹配项目默认勾选。请逐条检查；取消勾选的预约会保留。确认无误后按 <code>Ctrl+Enter</code> 执行清除，只有仍勾选的预约才会删除。仅输入命令或按 <code>Ctrl+T</code> 预览不会修改数据。</div>
-          <div><strong>四、没有匹配预约时：</strong>系统会显示“没有已过期的 book 预约”或指定日期没有预约，不会删除任何数据。若日期无效，会提示检查月-日格式。</div>
-          <div class="parse-help-example"><code>clear book</code> → 预览全部已过期预约；<code>clear book 11-1</code> → 预览11月1日全部预约；检查勾选项 → <code>Ctrl+Enter</code> 确认删除。</div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">9. 预约清理：clear book</div>
+            <div><code>clear book</code> → 预览已结束的 book 预约；预约结束时间按开始时间加时长计算，未填写时长按60分钟。</div>
+            <div><code>clear book 11-1</code> → 预览11月1日当天全部 book 预约，不论预约时间是否已过。</div>
+            <div>预览列表默认全选，可逐笔取消勾选。按 Ctrl+Enter 才会删除仍勾选的预约；普通订单不受影响。仅 Ctrl+T 解析不会删除数据。</div>
+          </div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">10. 删除订单</div>
+            <div><code>4 daisybook,3,x</code> → 按当前日期、店铺、理疗师和序号快速删除；末尾 x 时，中间金额、时长、房间、标记、备注、尾号和时间可省略。</div>
+            <div><code>delete 9-1</code> → 删除指定日期全部订单；<code>delete 9-1 10-1</code> → 删除日期范围内订单，包含首尾日期。</div>
+            <div>删除命令解析后先显示待执行项目。核对列表及勾选状态后按 Ctrl+Enter 执行；没有选中的项目不会删除。</div>
+          </div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">11. 日期与订单修改</div>
+            <div>单独输入日期（例如 <code>8-7</code>、<code>8月7日</code>、<code>2026-08-07</code>）可指定后续订单日期。解析结果中的统一日期可在日期控件中调整。</div>
+            <div>输入已有序号的订单可更新同日期、同店铺、同理疗师和序号的记录；找不到明确指定的原订单时不会擅自新增。再次录入已取消订单时可重新激活。</div>
+            <div>外场转帐快捷格式：<code>name,2/外,1300</code> 自动补全为金额350、时长60、转帐备注和13:00时间。</div>
+          </div>
         </div>
 
-        <div class="parse-help-section">
-          <div class="parse-help-title">⑤ 删除指令</div>
-          <div><code>1 tbook,1,x</code> → 按当天日期、店铺、理疗师和序号快速删除。</div>
-          <div>订单行末尾带 <code>x</code> 时，快捷删除只匹配日期、店铺、理疗师和序号，中间金额、时长、房间、尾号和时间字段会忽略。例如 <code>4 almabook,4,0,60,1331,1410,x</code> 等同于 <code>4 almabook,4,x</code>。</div>
-          <div><code>delete 9-1</code> → 删除9月1日全部订单；<code>delete 9-1 10-1</code> → 删除9月1日至10月1日全部订单，含首尾日期。</div>
+        <div class="help-page hidden" data-help-page="4">
+          <div class="parse-help-section">
+            <div class="parse-help-title">12. 录入区快捷操作与键盘快捷键</div>
+            <div>录入框下方的快捷命令包括：锁定显示、确认订单、过期清理、蜂蜜统计、近期预约、明天预约。确认订单只显示待确认清单；过期清理显示预约清单；其它项目按各自查询功能运行。</div>
+            <div><code>Ctrl+T</code> 解析/预览；<code>Ctrl+Enter</code> 复制当前命令并执行已解析、已勾选的项目；<code>Ctrl+C</code> 清空输入框。</div>
+            <div><code>Ctrl+A</code> 录入；<code>Ctrl+W</code> 趋势；<code>Ctrl+L</code> 明细；<code>Ctrl+X</code> 理疗室；<code>Ctrl+D</code> 今日概览；<code>Ctrl+Q</code> 理疗师统计；<code>Ctrl+E</code> Excel折线图；<code>Ctrl+H</code> 或 <code>Ctrl+Alt+H</code> 打开本说明书。</div>
+            <div><code>Ctrl+1</code> 折叠/展开今天要处理；<code>Ctrl+2</code> 折叠/展开预约队列；<code>Ctrl+3</code> 折叠/展开41号店理疗师队列。</div>
+            <div><code>Ctrl+,</code> 前一天；<code>Ctrl+.</code> 后一天；<code>Ctrl+M</code> 回到今天；<code>Ctrl+[</code>/<code>Ctrl+]</code> 调整解析日期。</div>
+          </div>
+          <div class="parse-help-section">
+            <div class="parse-help-title">13. 数据备份、Excel图表与界面</div>
+            <div><code>Ctrl+S</code> 导出 JSON；<code>Ctrl+U</code> 导入 JSON，可选择覆盖或追加。追加时，相同日期、店铺、理疗师和序号的订单由导入记录更新，其它记录保留。</div>
+            <div>Excel折线图支持按 Store、Machine、Name、Remark、AppVersion 分类；Machine 分组可用 Ctrl+, / Ctrl+. 切换。可选择叠加 Flora 当前真实订单数。Excel 数据在切换控制台选项卡时保留；手动清除或刷新页面后需重新载入。</div>
+            <div>首页「今天要处理」可折叠；预约队列及41号店理疗师队列可独立折叠。理疗室时间轴中，4号店（41号店）固定优先显示，其它店铺按实际占用房间数排序。</div>
+            <div>建议定期导出 JSON 备份。订单、店铺映射、理疗师映射和队列手动设置保存在本机浏览器中；清除浏览器网站数据前请先备份。</div>
+          </div>
         </div>
 
-        <div class="parse-help-section">
-          <div class="parse-help-title">⑥ 输入、日期与快捷键</div>
-          <div>单独一行输入日期（例如 <code>8-7</code>、<code>8月7日</code>、<code>2026-08-07</code>），可指定后续订单日期。</div>
-          <div>外场转帐快捷输入：<code>name,2/外,1300</code> 自动补全为 <code>name,2,350,60,转帐,1300</code>；序号不加 <code>#</code>，也不额外写“外场”字段。“外1”属于错误输入，不作特殊处理。</div>
-          <div><code>Ctrl+T</code> 解析订单或执行 check/chart 查询，不操作剪贴板；<code>Ctrl+Enter</code> 将 textarea 内容复制到剪贴板并执行确认；点击轨道 block 只把订单文字插入 textarea，不操作剪贴板。</div>
-          <div>从其他软件或浏览器页面切回 Flora 控制台时，会每次自动聚焦订单输入框，使用浏览器普通输入光标，并将页面及输入框内部滚动到当前光标位置，方便看清插入位置并继续输入；每次切回只执行一次，不清空内容。</div>
-          <div><code>Ctrl+C</code> 清空输入；<code>Ctrl+S</code> 导出 JSON；<code>Ctrl+U</code> 导入 JSON，先选择“覆盖”或“追加”。</div>
-          <div><code>Ctrl+A</code> 录入；<code>Ctrl+W</code> 趋势；<code>Ctrl+L</code> 明细；<code>Ctrl+X</code> 理疗室；<code>Ctrl+D</code> 今日概览；<code>Ctrl+Q</code> 理疗师统计；<code>Ctrl+E</code> Excel折线图；<code>Ctrl+H</code> 或 <code>Ctrl+Alt+H</code> 说明。</div>
-          <div><code>Ctrl+,</code> 前一天；<code>Ctrl+.</code> 后一天；<code>Ctrl+M</code> 回到今天（今日概览、理疗师统计及相关时段统计）。<code>Ctrl+[</code> / <code>Ctrl+]</code> 调整解析日期。</div>
-        </div>
-
-        <div class="parse-help-section">
-          <div class="parse-help-title">⑦ JSON 导入、Excel折线图与界面空间</div>
-          <div><code>Ctrl+U</code> 导入 JSON 时，可先选择“覆盖”或“追加”。选择“追加”时，相同日期 + 相同理疗师 + 相同序号的订单由后上传的记录覆盖，其它订单会追加保留。</div>
-          <div><code>Ctrl+E</code> 打开“Excel折线图”页面，整合自 <code>line_chart_016.html</code>。上传 Excel 后可按 Store、Machine、Name、Remark、AppVersion 分类查看折线；Machine 分组可用 <code>Ctrl+,</code> / <code>Ctrl+.</code> 切换分组。勾选“在图表中叠加当前 Flora 控制台 JSON 订单数”即可使用本控制台已有订单数据，无需再上传 JSON；叠加时排除预约与已取消订单。</div>
-          <div>Excel 折线图中的 Excel 数据在切换 Flora 控制台选项卡时会继续保留；只有在图表内手动点击“清除 Excel”才会清除已载入数据。刷新页面仍需重新上传。Flora 控制台原有订单数据不受影响。</div>
-          <div>“今天要处理”标题栏的“折叠列表/展开列表”按钮可隐藏或恢复待处理订单内容，折叠不会删除订单。快捷键：<code>Ctrl+1</code>。</div>
-          <div>“预约队列（按理疗师）”使用 <code>Ctrl+2</code> 展开/折叠；“4号店理疗师队列”使用 <code>Ctrl+3</code> 展开/折叠。对应按钮会显示热键编号。</div>
-        <div>Ctrl+X 理疗室时间轴：4号店固定显示在最上方；其它有订单的店铺按实际占用房间数量从多到少排列，房间占用数相同时按店铺编号排列。每家店铺独立显示自己的理疗室时间轴。</div>
-        </div>
-        </div>
-        </div>
         <div class="help-pagination help-pagination-bottom" aria-label="说明分页导航">
           <button type="button" class="btn btn-outline btn-sm" onclick="changeHelpPage(-1)">← 上一页</button>
-          <span id="helpPageLabelBottom" aria-live="polite">第 1 / 4 页</span>
+          <span id="helpPageLabelBottom" aria-live="polite">第 1 / 5 页</span>
           <button type="button" class="btn btn-outline btn-sm" onclick="changeHelpPage(1)">下一页 →</button>
         </div>
       </div>
@@ -1134,12 +1027,13 @@ input,select,textarea{font-family:inherit;font-size:16px}
         <!-- Parse Mode -->
         <div id="parseMode">
           <div class="form-group">
-            <textarea class="form-textarea" id="parseTextarea" placeholder="可一次输入或粘贴一行、多行订单。&#10;&#10;【普通订单】&#10;4 daisy,3,160,60,4,1107&#10;7 zona,2,200,60,3,1224&#10;&#10;【简写】&#10;4 daisy,1,1220&#10;4 daisy,1,20&#10;&#10;【预约 book】&#10;4 adelabook,1,1955&#10;4 daisybook,2,7792,20&#10;&#10;【查询】&#10;check book&#10;check truda&#10;check 7&#10;check 10-1&#10;check 10-1 truda&#10;check 10-5 10-20 qian&#10;check #&#10;check # 10-17&#10;check # daisy&#10;check # 10-17 daisy&#10;&#10;【删除】&#10;1 tbook,1,x&#10;4 daisybook,1,160,60,,1100,x&#10;delete 9-1&#10;delete 9-1 10-1&#10;&#10;【手动调整理疗师队列】&#10;set 1 2&#10;set kitty 5&#10;set kitty out&#10;set kitty in&#10;set 4 kitty 8"></textarea>
+            <textarea class="form-textarea" id="parseTextarea" placeholder="可一次输入或粘贴一行、多行订单。&#10;&#10;【普通订单】&#10;4 daisy,3,160,60,4,1107&#10;7 zona,2,200,60,3,1224&#10;&#10;【完整格式】&#10;7 lenabook,1,250,60,过来选,3457v,1200&#10;&#10;【简写】&#10;4 daisy,1,1220&#10;4 daisy,1,20&#10;&#10;【预约 book】&#10;4 adelabook,1,1955&#10;4 daisybook,2,7792,20&#10;&#10;【查询】&#10;check book&#10;check truda&#10;check 7&#10;check 10-1&#10;check 10-1 truda&#10;check 10-5 10-20 qian&#10;check #&#10;check # 10-17&#10;check # daisy&#10;check # 10-17 daisy&#10;&#10;【删除】&#10;1 tbook,1,x&#10;4 daisybook,1,160,60,,1100,x&#10;delete 9-1&#10;delete 9-1 10-1&#10;&#10;【手动调整理疗师队列】&#10;set 1 2&#10;set kitty 5&#10;set kitty out&#10;set kitty in&#10;set 4 kitty 8"></textarea>
 
             <div class="form-hint parse-input-note">一行可以输入一条或多条订单；也可以输入查询、删除指令。输入完成后按 <code>Ctrl+T</code> 解析。详细格式与使用说明请查看 <b>说明[H]</b>。</div>
             <div class="quick-command-row" aria-label="常用快捷命令">
               <span class="quick-command-caption">快捷命令：</span>
               <button type="button" onclick="runQuickCommand('lock')" title="统计今天09:30至当前时间的订单">锁定显示</button>
+              <button type="button" onclick="runQuickCommand('confirmall')" title="列出所有真实待确认订单；核查勾选后按 Ctrl+Enter 确认">确认订单</button>
               <button type="button" onclick="runQuickCommand('clearbook')" title="预览已结束的预约，Ctrl+Enter确认清除">过期清理</button>
               <button type="button" onclick="runQuickCommand('honey')" title="统计本月1日至今天的蜂蜜订单">蜂蜜统计</button>
               <button type="button" onclick="runQuickCommand('nextbook')" title="查询当前时刻之后尚未开始的预约">近期预约</button>
@@ -1514,8 +1408,10 @@ function loadData(){
   try{ shopMap=JSON.parse(localStorage.getItem(SHOPMAP_KEY))||{}; }catch(e){ shopMap={}; }
   try{ therapistMap=JSON.parse(localStorage.getItem(THERAPISTMAP_KEY))||{}; }catch(e){ therapistMap={}; }
   if(Object.keys(shopMap).length===0){
-    shopMap={'1':'1号店','7':'7F店','3':'3号店','5':'5号店'};
+    shopMap={'1':'1号店','4':'41号店','7':'7F店','3':'3号店','5':'5号店'};
   }
+  // 已有本地映射若仍写作“4号店”，升级时自动改为显示名“41号店”；编号4不变。
+  if(!shopMap['4']||shopMap['4']==='4号店')shopMap['4']='41号店';
   try{
     const savedQueue=JSON.parse(localStorage.getItem(THERAPIST_QUEUE_KEY)||'null');
     therapistQueueData=savedQueue&&savedQueue.shops&&typeof savedQueue.shops==='object'?savedQueue:{shops:{}};
@@ -1538,7 +1434,7 @@ function saveData(){
 }
 
 function seedDemoData(){
-  shopMap={'1':'1号店','4':'4号店','7':'7F店'};
+  shopMap={'1':'1号店','4':'41号店','7':'7F店'};
   const today=new Date();
   const y=new Date(today); y.setDate(y.getDate()-1);
   const db=new Date(today); db.setDate(db.getDate()-2);
@@ -1607,7 +1503,7 @@ function dateWithOffset(dateStr, dayOffset){
   return formatDate(d);
 }
 
-function getShopName(code){ return shopMap[code]||code+'号店'; }
+function getShopName(code){ const key=String(code); return shopMap[key]||(key==='4'?'41号店':key+'号店'); }
 function getShopColor(code){
   const keys=Object.keys(shopMap);
   const idx=keys.indexOf(code);
@@ -1689,11 +1585,13 @@ function completeManualQueueMoveForOrder(order){
 function getTherapistQueueSnapshot(now=new Date()){
   const rosterCutoff=now.getTime()-72*60*60*1000;
   const shopCutoff=now.getTime()-168*60*60*1000;
-  const roster=new Map(),lastShop=new Map(),lastQualifying=new Map(),shopOrderHistory=new Map();
+  const roster=new Map(),lastShop=new Map(),lastQualifying=new Map(),shopOrderHistory=new Map(),latestActualOrder=new Map();
   orders.forEach(o=>{
     if(!isQueueActualOrder(o))return;
     const dt=queueOrderDateTime(o);if(!dt)return;
     const key=queueNormalizeName(o.sales),name=String(o.sales||'').replace(/book/ig,'').trim();
+    const latest=latestActualOrder.get(key);
+    if(!latest||dt>latest.dt)latestActualOrder.set(key,{dt,name});
     const shopCode=String(o.shopCode);
     const historyKey=`${key}|||${shopCode}`;
     if(!shopOrderHistory.has(historyKey))shopOrderHistory.set(historyKey,[]);
@@ -1718,7 +1616,18 @@ function getTherapistQueueSnapshot(now=new Date()){
   const byShop=new Map();
   const outKeysByShop=new Map();
   Object.entries(therapistQueueData?.shops||{}).forEach(([shopCode])=>{
-    const outList=getTherapistQueueOutList(shopCode,false);
+    // 即使该店近期没有任何真实订单，也要为人工临时占位保留一个可渲染的队列容器。
+    if(!byShop.has(String(shopCode)))byShop.set(String(shopCode),[]);
+    const outList=getTherapistQueueOutList(shopCode,true);
+    // 离开名单沿用理疗师队列的72小时名单窗口：最近一笔真实订单已超出72小时，
+    // 即从 out 名单清除；从未有过真实订单的手动离开项，则从 outAt 起保留72小时。
+    for(let i=outList.length-1;i>=0;i--){
+      const person=outList[i];
+      if(!person||!person.key){outList.splice(i,1);continue;}
+      const latest=latestActualOrder.get(person.key);
+      const expiryBase=latest?.dt?.getTime() ?? Date.parse(person.outAt||'');
+      if(!Number.isFinite(expiryBase)||expiryBase<rosterCutoff){outList.splice(i,1);}
+    }
     outList.forEach(person=>{
       if(!person||!person.key)return;
       if(!outKeysByShop.has(String(shopCode)))outKeysByShop.set(String(shopCode),new Set());
@@ -1755,8 +1664,15 @@ function getTherapistQueueSnapshot(now=new Date()){
       if(!a.lastTurnAt)return -1;if(!b.lastTurnAt)return 1;
       return a.lastTurnAt-b.lastTurnAt||a.name.localeCompare(b.name,'zh-CN');
     });
+    // v238：set 姓名 数字可建立临时占位理疗师，即使最近72小时没有真实订单也进入队列。
+    // 占位项以 afterKey 锚定在某位队列成员之后，因此锚点随正常队列移动时，占位项也跟随移动。
+    const manualMoves=getTherapistQueueManualMoves(shopCode,false);
+    manualMoves.forEach(move=>{
+      if(!move||!move.key||activePeople.some(item=>item.key===move.key))return;
+      activePeople.push({key:move.key,name:move.name||move.key,shopCode:String(shopCode),lastTurnAt:null,lastShopAt:null,isManualPlaceholder:true});
+    });
     // 临时数字位置只作用于正常队列，离开人员始终独立显示在分隔线右侧。
-    getTherapistQueueManualMoves(shopCode,false).forEach(move=>{
+    manualMoves.forEach(move=>{
       const from=activePeople.findIndex(item=>item.key===move.key);
       if(from<0)return;
       const item=activePeople.splice(from,1)[0];
@@ -1824,12 +1740,24 @@ function renderTherapistQueueInline(code,list,now=new Date()){
   // v228：队列显示内容未变化时绝不重写 DOM；避免每2秒触发 Safari 滚动锚定。
   if(host.innerHTML!==nextHTML)host.innerHTML=nextHTML;
 }
+function queueChipCommand(shopCode,name,isOut){
+  const input=document.getElementById('parseTextarea');if(!input)return;
+  const safeName=String(name||'').trim();if(!safeName)return;
+  const prefix=String(shopCode)==='4'?'':`${shopCode} `;
+  input.value=isOut?`set ${prefix}${safeName} number`:`set ${prefix}${safeName} out`;
+  parseResults=[];parsedDate='';
+  const result=document.getElementById('parseResult');if(result)result.innerHTML='';
+  const check=document.getElementById('checkResult');if(check){check.innerHTML='';check.classList.add('hidden');}
+  switchTab('add');
+  showToast(isOut?'已填入召回命令；请把 number 替换为目标位置数字，再按 Ctrl+T 预览。':'已填入移出命令；按 Ctrl+T 查看预览，Ctrl+Enter 执行。','info');
+}
+
 function renderTherapistQueueShopPanel(code,list,now=new Date(),compact=false){
   const shopName=shopMap[code]||orders.find(o=>String(o.shopCode)===String(code))?.shopName||`${code}号店`;
   const active=list.filter(item=>!item.isOut);
   const out=list.filter(item=>item.isOut);
   const renderChip=(item,i,isOut)=>{
-    if(isOut)return `<div class="turn-queue-chip queue-out-chip" title="${escapeAttr(item.name)}｜离开，不参与动态队列；接到新正式订单后自动返回"><strong>${isOut?'':i+1+'. '}${escapeHtml(item.name)}</strong><small>离开</small></div>`;
+    if(isOut)return `<div class="turn-queue-chip queue-out-chip" role="button" tabindex="0" onclick="queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)}" title="点击填入 set ${escapeAttr(item.name)} number；替换 number 为目标位置"><strong>${escapeHtml(item.name)}</strong><small>离开 · 点击召回</small></div>`;
     const busy=getTherapistBusyInfo(code,item.name,now);
     const booked=getTherapistNextBook(code,item.name,now);
     const cls=busy.busy?'busy':booked?'booked':item.lastTurnAt?'idle':'no-turn';
@@ -1837,7 +1765,7 @@ function renderTherapistQueueShopPanel(code,list,now=new Date(),compact=false){
     const state=busy.busy?busyRoomText:booked?`预约 ${formatTime(booked.order.time)}`:item.lastTurnAt?`上次 ${item.lastTurnAt.toLocaleTimeString('zh-NZ',{hour:'2-digit',minute:'2-digit'})}`:'暂无>50订单';
     const title=`${item.name}｜${busy.busy?busyRoomText:booked?'有预约':'空闲'}${booked?'｜预约 '+booked.order.date+' '+formatTime(booked.order.time):''}`;
     const bookedLine=busy.busy&&booked?`<small class="queue-book-line">预约 ${escapeHtml(formatTime(booked.order.time))}</small>`:'';
-    return `<div class="turn-queue-chip ${cls}" title="${escapeAttr(title)}"><strong>${i+1}. ${escapeHtml(item.name)}</strong><small>${escapeHtml(state)}</small>${bookedLine}</div>`;
+    return `<div class="turn-queue-chip ${cls}" role="button" tabindex="0" onclick="queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',false)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',false)}" title="点击填入 set ${escapeAttr(item.name)} out；按 Ctrl+T 预览"><strong>${i+1}. ${escapeHtml(item.name)}</strong><small>${escapeHtml(state)}</small>${bookedLine}</div>`;
   };
   const activeHTML=active.map((item,i)=>renderChip(item,i,false)).join('');
   const outHTML=out.map((item,i)=>renderChip(item,i,true)).join('');
@@ -1852,7 +1780,8 @@ function renderTherapistTurnQueue(){
   const primary=all.get('4')||[];
   const now=new Date();
   const primaryActive=primary.filter(item=>!item.isOut);
-  const primaryHTML=primary.length?`<div class="turn-queue-strip">${renderTherapistQueueShopPanel('4',primary,now,true)}</div>`:'<div class="turn-queue-empty">最近3天暂无4号店理疗师订单</div>';
+  const primaryHTML=primary.length?`<div class="turn-queue-strip">${renderTherapistQueueShopPanel('4',primary,now,true)}</div>`:`<div class="turn-queue-empty">最近3天暂无${escapeHtml(getShopName('4'))}理疗师订单</div>`;
+  const title=document.getElementById('therapistTurnQueueTitle');if(title)title.textContent=`${getShopName('4')}理疗师队列`;
   // v228：无实际内容变化时跳过整块重绘，减少页面滚动位置被浏览器重新锚定。
   if(wrap.innerHTML!==primaryHTML)wrap.innerHTML=primaryHTML;
   renderTherapistQueueInline('4',primary,now);
@@ -2330,7 +2259,7 @@ function renderTherapistStats(){
 }
 
 // ============================================================
-// Ctrl+H 说明页分页：录入基础 / 查询 / 图表与其他操作
+// Ctrl+H 使用说明书分页；新增功能时同步维护各页完整操作说明。
 // ============================================================
 let helpPageIndex=0;
 function changeHelpPage(delta){
@@ -3564,73 +3493,104 @@ function convertWechatLogToOrders(inputText){
   return output.join('\n');
 }
 
-// v237：set 命令管理理疗师的临时位置与离开/返回状态。默认4号店，可选店铺前缀。
-// set 1 2 / set kitty 5 / set kitty out / set kitty in / set 4 kitty 8
+// v239：set/confirm 均先生成可勾选预览；只有 Ctrl+Enter 才修改数据。
 function handleSetQueueCommand(text){
   const raw=String(text||'').trim();
   if(!/^set(?:\s|$)/i.test(raw))return false;
   const match=raw.match(/^set\s+(.+?)\s+(in|out|\d+)\s*$/i);
-  if(!match){showToast('用法：set 1 2、set kitty 5、set kitty out、set kitty in；也可在 set 后指定店铺号。','error');return true;}
+  if(!match){showToast('用法：set 1 2、set ivy 7、set ivy out、set ivy in；召回命令请把 number 替换为目标数字。','error');return true;}
   const left=match[1].trim().split(/\s+/);
   let shopCode='4',targetToken='';
   if(left.length>=2&&/^\d+$/.test(left[0])){shopCode=left.shift();targetToken=left.join(' ');}
   else targetToken=left.join(' ');
   const action=match[2].toLowerCase();
   if(!targetToken){showToast('请指定理疗师姓名或当前队列序号。','error');return true;}
+  if(/^\d+$/.test(targetToken)){
+    const active=getTherapistQueueShop(shopCode).filter(item=>!item.isOut);
+    const pos=Number(targetToken);
+    if(pos<1||pos>active.length){showToast(`当前${getShopName(shopCode)}队列没有第${pos}位理疗师。`,'error');return true;}
+  }
   const list=getTherapistQueueShop(shopCode).slice();
   const active=list.filter(item=>!item.isOut);
   let target=null;
-  if(/^\d+$/.test(targetToken)){
-    const position=Number(targetToken);
-    if(position>=1&&position<=active.length)target=active[position-1];
-  }else{
+  if(/^\d+$/.test(targetToken))target=active[Number(targetToken)-1]||null;
+  else{
     const targetKey=queueNormalizeName(targetToken);
     target=list.find(item=>item.key===targetKey||queueNormalizeName(item.name)===targetKey)||null;
-    if(!target){
-      const out=getTherapistQueueOutList(shopCode,false);
-      const found=out.find(item=>item&&(item.key===targetKey||queueNormalizeName(item.name)===targetKey));
-      if(found)target={...found,isOut:true};
-    }
+    if(!target)target={key:targetKey,name:targetToken,shopCode:String(shopCode),isOut:false,isManualPlaceholder:true};
   }
   if(!target){showToast(`在${getShopName(shopCode)}中找不到“${targetToken}”。`,'error');return true;}
-  const key=target.key;
+  let preview='';
+  if(action==='out')preview=`将 ${target.name} 移到「离开」区域，不再参与正常轮转；真实订单超过72小时名单窗口后自动从 out 清除。`;
+  else if(action==='in')preview=`将 ${target.name} 从「离开」区域召回，恢复正常队列规则。`;
+  else preview=`将 ${target.name} 加入/调整到 ${getShopName(shopCode)} 队列，排在第 ${Number(action)} 位理疗师之后；接到下一笔真实订单后解除人工位置。`;
+  const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
+  parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${shopCode==='4'?'':shopCode+' '}${target.name} ${action}`,shopCode:String(shopCode),targetKey:target.key,targetName:target.name,targetPosition:/^\d+$/.test(action)?Number(action):null,setAction:action,extra:preview}];
+  parsedDate='';renderParseResults();
+  return true;
+}
+
+function handleConfirmOrdersCommand(text){
+  const raw=String(text||'').trim();
+  if(!/^confirm(?:\s|$)/i.test(raw))return false;
+  const rest=raw.replace(/^confirm\s*/i,'').trim();
+  const now=new Date();
+  const parseDate=token=>{
+    const m=String(token||'').match(/^(\d{1,2})[-/](\d{1,2})$/);
+    if(!m)return null;
+    const year=now.getFullYear(),month=Number(m[1]),day=Number(m[2]);
+    const d=new Date(year,month-1,day);
+    if(month<1||month>12||day<1||d.getMonth()!==month-1||d.getDate()!==day)return null;
+    return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  };
+  let targetDate='',shopCode='';
+  if(/^all$/i.test(rest)){
+  }else{
+    const parts=rest.split(/\s+/).filter(Boolean);
+    if(parts.length===1&&/^\d+$/.test(parts[0]))shopCode=parts[0];
+    else if(parts.length===2){targetDate=parseDate(parts[0]);shopCode=parts[1];if(!targetDate){showToast('日期格式无效，请使用 confirm 11-4 4。','error');return true;}}
+    else{showToast('用法：confirm all、confirm 4、confirm 11-4 4。','error');return true;}
+  }
+  const targets=orders.filter(o=>{
+    if(!o||o.status!=='pending'||/book/i.test(String(o.sales||'')))return false;
+    if(!String(o.sales||'').trim()||!String(o.shopCode||'').trim())return false;
+    if(shopCode&&String(o.shopCode)!==String(shopCode))return false;
+    if(targetDate&&String(o.date||'')!==targetDate)return false;
+    return true;
+  }).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.shopCode||'').localeCompare(String(b.shopCode||''),undefined,{numeric:true})||String(a.time||'').localeCompare(String(b.time||'')));
+  const scope=rest.toLowerCase()==='all'?'全部店铺、全部日期':(targetDate?`${targetDate} · ${getShopName(shopCode)}`:`${getShopName(shopCode)} · 全部日期`);
+  const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
+  parseResults=targets.map(o=>({id:uid(),action:'confirmOrder',matched:true,selected:true,orderRef:o,shopCode:String(o.shopCode||''),shopName:getShopName(o.shopCode),sales:o.sales||'',seqNo:o.seqNo||'',date:o.date||'',time:o.time||'',amount:Number(o.amount||0),amountUnknown:!!o.amountUnknown,duration:o.duration||'',room:o.room||'',tail:getGuestTail(o),note:o.note||'',selfBooked:!!o.selfBooked,bankTransfer:!!o.bankTransfer,cardPayment:!!o.cardPayment,vip:!!o.vip,phoneOrder:!!o.phoneOrder,honeyCount:getHoneyCount(o),extra:scope}));
+  if(!targets.length)parseResults=[{id:uid(),action:'confirmOrder',matched:false,selected:false,empty:true,raw:'没有符合条件的真实待确认订单',extra:`范围：${scope}。book 预约与已取消订单不参与。`}];
+  parsedDate=targetDate||'';renderParseResults();
+  return true;
+}
+
+function applySetQueueCommand(r){
+  const shopCode=String(r.shopCode||'4'),key=String(r.targetKey||''),name=String(r.targetName||key),action=String(r.setAction||'');
   const outList=getTherapistQueueOutList(shopCode,true);
   const outIndex=outList.findIndex(item=>item&&item.key===key);
   if(action==='out'){
-    if(outIndex<0)outList.push({key,name:target.name,outAt:new Date().toISOString()});
-    const moves=getTherapistQueueManualMoves(shopCode,true);
-    const mi=moves.findIndex(item=>item&&item.key===key);if(mi>=0)moves.splice(mi,1);
-    saveData();renderTherapistTurnQueue();
-    const input=document.getElementById('parseTextarea');if(input)input.value='';
-    showToast(`${target.name}已移至队列外侧，并标记为“离开”；接到新正式订单后会自动返回。`,'success');
-    return true;
+    if(outIndex<0)outList.push({key,name,outAt:new Date().toISOString()});
+    const moves=getTherapistQueueManualMoves(shopCode,true);const mi=moves.findIndex(item=>item&&item.key===key);if(mi>=0)moves.splice(mi,1);
+    return `${name} 已移至 ${getShopName(shopCode)} 的离开区域。`;
   }
   if(action==='in'){
     if(outIndex>=0)outList.splice(outIndex,1);
-    const moves=getTherapistQueueManualMoves(shopCode,true);
-    const mi=moves.findIndex(item=>item&&item.key===key);if(mi>=0)moves.splice(mi,1);
-    saveData();renderTherapistTurnQueue();
-    const input=document.getElementById('parseTextarea');if(input)input.value='';
-    showToast(`${target.name}已返回正常队列，恢复按接单时间排序。`,'success');
-    return true;
+    const moves=getTherapistQueueManualMoves(shopCode,true);const mi=moves.findIndex(item=>item&&item.key===key);if(mi>=0)moves.splice(mi,1);
+    return `${name} 已从离开区域召回。`;
   }
-  const afterPosition=Number(action);
-  if(!Number.isInteger(afterPosition)||afterPosition<1){showToast('set 的目标位置必须是大于0的整数，或使用 in/out。','error');return true;}
-  // 数字位置命令同时表示召回：清除离开状态，再设置临时人工位置。
+  const afterPosition=Number(r.targetPosition);
+  if(!Number.isInteger(afterPosition)||afterPosition<1)throw new Error('目标位置必须是大于0的整数。');
   if(outIndex>=0)outList.splice(outIndex,1);
-  const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut);
+  let currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut).filter(item=>item.key!==key);
   const anchor=afterPosition<=currentActive.length?currentActive[afterPosition-1]:null;
-  if(anchor&&anchor.key===key&& !target.isOut){showToast(`${target.name}已经在第${afterPosition}位，位置无需调整。`,'info');return true;}
   const moves=getTherapistQueueManualMoves(shopCode,true);
   const existingIndex=moves.findIndex(move=>move&&move.key===key);
-  const moveRecord={key,name:target.name,afterKey:anchor&&anchor.key!==key?anchor.key:'',movedAt:new Date().toISOString()};
+  const moveRecord={key,name,afterKey:anchor?anchor.key:'',movedAt:new Date().toISOString()};
   if(existingIndex>=0)moves.splice(existingIndex,1);
   moves.push(moveRecord);
-  saveData();renderTherapistTurnQueue();
-  const input=document.getElementById('parseTextarea');if(input)input.value='';
-  const destination=anchor&&anchor.key!==key?`移到 ${anchor.name} 后面`:'目标位置不存在，已安排到队列末尾';
-  showToast(`${target.name}已返回/安排到${destination}；下一笔正式订单后恢复按接单时间排序。`,'success');
-  return true;
+  return anchor?`${name} 已加入队列，排在 ${anchor.name} 后面。`:`${name} 已加入队列末尾（当前队列不足 ${afterPosition} 位）。`;
 }
 
 // v206：clear book 先生成待确认列表；只有 Ctrl+Enter 才真正删除。
@@ -3685,6 +3645,7 @@ function runQuickCommand(kind){
     if(now.getHours()*60+now.getMinutes()<570){showToast('09:30以后才能统计当日计费时段。','error');return;}
     command=`check 0930 ${currentHHMM}`;
   }
+  else if(kind==='confirmall') command='confirm all';
   else if(kind==='clearbook') command='clear book';
   else if(kind==='honey') command=`chart h ${now.getMonth()+1}-1 ${monthDay(now)}`;
   else if(kind==='nextbook') command='check nextbook';
@@ -3693,7 +3654,7 @@ function runQuickCommand(kind){
   const input=document.getElementById('parseTextarea');
   if(!input)return;
   input.value=command;
-  // 快捷命令点击后直接执行，不调用 focus()，不改变页面滚动位置。
+  // v239：确认订单只生成待核查清单；其他快捷查询沿用原有解析行为。
   parseMessages();
 }
 
@@ -3701,8 +3662,9 @@ function parseMessages(){
   let text=document.getElementById('parseTextarea').value.trim();
   if(!text){showToast('请先粘贴消息','error');return;}
 
-  // v237：set 队列位置/离开/返回命令，属于即时命令，不进入订单解析。
+  // v239：队列与批量确认命令先生成预览，不进入普通订单解析。
   if(handleSetQueueCommand(text)) return;
+  if(handleConfirmOrdersCommand(text)) return;
   // v206：clear book 先生成预览列表，等待 Ctrl+Enter 确认。
   if(handleClearBookCommand(text)) return;
   // ⭐ chart / check 查询命令优先处理，避免被普通订单解析器误识别。
@@ -5521,18 +5483,35 @@ function renderParseResults(){
   const hasDeleteRange=parseResults.some(r=>r.action==='deleteRange');
   const hasCheck=parseResults.some(r=>r.action==='check');
   const hasClearBook=parseResults.some(r=>r.action==='clearBook');
+  const hasConfirmOrders=parseResults.some(r=>r.action==='confirmOrder');
+  const hasSetQueue=parseResults.some(r=>r.action==='setQueue');
+  const confirmOrderCount=parseResults.filter(r=>r.action==='confirmOrder'&&r.matched&&!r.empty).length;
   const clearBookCount=parseResults.filter(r=>r.action==='clearBook'&&!r.empty).length;
-  let html='<div class="parse-result-title">'+(hasClearBook?`待清除 ${clearBookCount} 条 book 预约`:'识别到 '+parseResults.length+' 条'+(hasDeleteRange?'操作':'订单'))+'<span id="parseResultDateText">'+(parsedDate?'，日期：'+parsedDate:'')+'</span>'+(hasClearBook?'，请检查列表后按 Ctrl+Enter 确认：':'，请确认后执行：')+'</div>';
+  let heading=hasConfirmOrders?`待确认真实订单 ${confirmOrderCount} 条`:hasSetQueue?'队列调整预览':hasClearBook?`待清除 ${clearBookCount} 条 book 预约`:'识别到 '+parseResults.length+' 条'+(hasDeleteRange?'操作':'订单');
+  let instruction=(hasConfirmOrders||hasSetQueue||hasClearBook)?'，请核查勾选项后按 Ctrl+Enter 执行：':'，请确认后执行：';
+  let html='<div class="parse-result-title">'+heading+'<span id="parseResultDateText">'+(parsedDate?'，日期：'+parsedDate:'')+'</span>'+instruction+'</div>';
   html+='<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap">';
   html+='<button class="btn btn-outline btn-sm" onclick="selectAllParse(true)">全选</button>';
   html+='<button class="btn btn-outline btn-sm" onclick="selectAllParse(false)">取消全选</button>';
   html+='<div style="flex:1;min-width:120px"></div>';
-  html+='<label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="date" id="parseDate" value="'+(parsedDate||todayStr())+'" onchange="updateParsedDateFromInput(this)" style="padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;min-height:36px"><span>统一日期[D]</span></label>';
+  if(!hasConfirmOrders&&!hasSetQueue)html+='<label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="date" id="parseDate" value="'+(parsedDate||todayStr())+'" onchange="updateParsedDateFromInput(this)" style="padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;min-height:36px"><span>统一日期[D]</span></label>';
   html+='</div>';
 
   parseResults.forEach((r,i)=>{
     const color=r.action==='deleteRange'?'var(--danger)':getShopColor(r.shopCode);
     if(r.matched){
+      if(r.action==='confirmOrder'){
+        const o=r.orderRef||{};
+        html+=`<div class="parse-item" style="border-left:3px solid var(--success);background:var(--gray-50)">
+          <div class="check ${r.selected?'done':''}" onclick="toggleParse(${i})">${r.selected?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>':''}</div>
+          <div class="parse-item-content"><div class="check-result-main"><span class="parse-item-shop" style="color:${color}">${escapeHtml(r.date)} · ${escapeHtml(r.shopName||getShopName(r.shopCode))}</span><strong>${escapeHtml(r.sales)}</strong>${r.seqNo?`<span>${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}<span class="check-result-status" style="color:var(--warn)">待确认</span></div>
+          <div class="check-result-sub"><span>时间 ${formatTime(r.time)}</span><span>· ${r.amountUnknown?'<span style="color:var(--warn)">价格未知</span>':'¥'+Number(r.amount||0).toFixed(2)}</span>${r.duration?`<span>· ${escapeHtml(r.duration)}分钟</span>`:''}${r.room?`<span>· 房间 ${escapeHtml(r.room)}</span>`:''}${r.tail?`<span>· 尾号 ${escapeHtml(r.tail)}</span>`:''}${r.note?`<span>· 备注 ${escapeHtml(r.note)}</span>`:''}${r.selfBooked?' <span>📞自约</span>':''}${r.bankTransfer?' <span>🏦银行</span>':''}${r.cardPayment?' <span>💳刷卡</span>':''}${r.vip?' <span>♛VIP</span>':''}${r.phoneOrder?' <span>☎接线</span>':''}${r.honeyCount?`<span>🍯蜂蜜${r.honeyCount}瓶</span>`:''}</div></div></div>`;
+        return;
+      }
+      if(r.action==='setQueue'){
+        html+=`<div class="parse-item" style="border-left:3px solid var(--primary);background:var(--gray-50)"><div class="check ${r.selected?'done':''}" onclick="toggleParse(${i})">${r.selected?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>':''}</div><div class="parse-item-content"><strong>${escapeHtml(r.raw)}</strong><div class="check-result-sub">${escapeHtml(r.extra||'')}</div></div></div>`;
+        return;
+      }
       if(r.action==='clearBook'){
         html+=`<div class="parse-item" style="border-left:3px solid var(--danger);background:var(--danger-light)">
           <div class="check ${r.selected?'done':''}" onclick="toggleParse(${i})">${r.selected?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>':''}</div>
@@ -5601,6 +5580,8 @@ function renderParseResults(){
           ${overwriteHint?`<div style="margin-top:5px">${overwriteHint}</div>${renderOverwriteComparison(r)}`:''}
         </div>
       </div>`;
+    } else if(r.action==='confirmOrder'&&r.empty){
+      html+=`<div class="parse-item" style="border-left:3px solid var(--gray-300);background:var(--gray-50);opacity:.8"><div class="parse-item-content"><strong>${escapeHtml(r.raw)}</strong><div class="check-result-sub">${escapeHtml(r.extra||'')}</div></div></div>`;
     } else {
       html+=`<div class="parse-item" style="opacity:.6">
         <div class="check" style="border-color:var(--danger)"></div>
@@ -5613,7 +5594,7 @@ function renderParseResults(){
   });
 
   const validCount=parseResults.filter(r=>r.matched&&r.selected).length;
-  const confirmLabel=hasClearBook?'确认清除 '+clearBookCount+' 条预约 [Ctrl+Enter]':(hasCheck?'确认查看 '+validCount+' 条订单 [⏎]':'确认添加 '+validCount+' 条订单 [⏎]');
+  const confirmLabel=hasConfirmOrders?'确认所选 '+validCount+' 条订单 [Ctrl+Enter]':(hasSetQueue?'执行队列调整 [Ctrl+Enter]':hasClearBook?'确认清除 '+clearBookCount+' 条预约 [Ctrl+Enter]':(hasCheck?'确认查看 '+validCount+' 条订单 [⏎]':'确认添加 '+validCount+' 条订单 [⏎]'));
   html+=`<div style="margin-top:8px;text-align:right">
     <button class="btn btn-primary" onclick="batchAddParse()" ${validCount===0?'disabled style="opacity:.5;cursor:not-allowed"':''}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>${confirmLabel}
@@ -5652,6 +5633,31 @@ function batchAddParse(){
     document.getElementById('parseResult').innerHTML='';
     parseResults=[];
     showToast(removed?`已确认清除 ${removed} 条 book 预约。`:'没有需要清除的 book 预约。',removed?'success':'info');
+    return;
+  }
+
+  // v239：批量确认只处理清单中仍被勾选、仍为 pending 的真实订单。
+  if(selected.some(r=>r.action==='confirmOrder')){
+    let count=0;
+    selected.filter(r=>r.action==='confirmOrder'&&r.orderRef).forEach(r=>{
+      const o=r.orderRef;
+      if(orders.includes(o)&&o.status==='pending'&&!/book/i.test(String(o.sales||''))&&String(o.shopCode||'').trim()&&String(o.sales||'').trim()){
+        o.status='confirmed';count++;
+      }
+    });
+    saveData();renderAll();
+    document.getElementById('parseTextarea').value='';document.getElementById('parseResult').innerHTML='';parseResults=[];
+    showToast(count?`已确认 ${count} 笔勾选的真实订单；未勾选、预约及已取消订单未更改。`:'没有可确认的勾选订单。',count?'success':'info');
+    return;
+  }
+
+  // v239：队列命令只有在预览列表中勾选并按 Ctrl+Enter 后才真正执行。
+  if(selected.some(r=>r.action==='setQueue')){
+    const results=[];
+    selected.filter(r=>r.action==='setQueue').forEach(r=>{results.push(applySetQueueCommand(r));});
+    saveData();renderTherapistTurnQueue();
+    document.getElementById('parseTextarea').value='';document.getElementById('parseResult').innerHTML='';parseResults=[];
+    showToast(results.join('；')||'没有执行队列调整。','success');
     return;
   }
 
