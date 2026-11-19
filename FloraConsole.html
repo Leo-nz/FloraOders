@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v242.html | 修复Ctrl+2预约队列展开/折叠时的页面滚动跳屏 -->
+<!-- VERSION: FloraConsole_v251.html | 映射编辑按钮改为铅笔图标，删除统一X并为映射列表增加分页 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v242">
+<meta name="flora-console-version" content="v251">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -160,8 +160,14 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .shop-map-item .code{font-weight:700;color:var(--primary);min-width:40px;text-align:center;background:var(--primary-light);padding:2px 8px;border-radius:4px;font-size:13px}
 .shop-map-item .arrow{color:var(--gray-400)}
 .shop-map-item .name{flex:1;font-size:14px;color:var(--gray-700)}
-.shop-map-item .del{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--gray-400)}
+.shop-map-item .del,.shop-map-item .edit{width:28px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:var(--gray-500);font-size:12px;flex-shrink:0}
 .shop-map-item .del:hover{background:var(--danger-light);color:var(--danger)}
+.shop-map-item .edit:hover{background:var(--primary-light);color:var(--primary)}
+.map-pagination{display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 0 4px;color:var(--gray-500);font-size:12px}
+.map-pagination button{min-width:54px;padding:5px 10px;border:1px solid var(--gray-200);border-radius:6px;background:#fff;color:var(--gray-700);font-size:12px}
+.map-pagination button:disabled{opacity:.35;cursor:not-allowed}
+.map-pagination .page-info{min-width:76px;text-align:center;font-variant-numeric:tabular-nums}
+.shop-map-item .del svg,.shop-map-item .edit svg{width:14px;height:14px;display:block}
 .shop-map-add{display:flex;gap:6px;margin-top:8px;align-items:center}
 .shop-map-add input{flex:1;min-width:0;width:0;padding:6px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;min-height:36px}
 .shop-map-add input:first-child{text-align:center}
@@ -607,6 +613,10 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .turn-queue-chip strong{display:block;font-size:12px;color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750}
 .turn-queue-chip small{display:block;font-size:9px;color:inherit;opacity:.92;font-weight:600;margin-top:3px;white-space:nowrap}.turn-queue-chip .queue-book-line{white-space:normal;line-height:1.2;margin-top:4px}
 .turn-queue-chip.busy{background:rgba(40,167,69,.65)}.turn-queue-chip.idle,.turn-queue-chip.no-turn{background:rgba(120,120,120,.45)}.turn-queue-chip.booked{background:rgba(0,123,255,.55)}
+/* v246：临时 Out 保留原队列位置，以粗虚线边框和倒计时提示。 */
+.turn-queue-chip.queue-temp-out{border:4px dashed #d97706!important;padding:3px 6px;background:#fff7ed!important;color:#9a3412!important;box-shadow:0 0 0 1px rgba(217,119,6,.12)}
+.turn-queue-chip.queue-temp-out strong,.turn-queue-chip.queue-temp-out small{color:#9a3412!important}
+.turn-queue-chip.queue-temp-out small{font-variant-numeric:tabular-nums;font-weight:800}
 /* v238：正常队列与离开人员使用清晰竖向分隔；离开人员置于右侧并弱化显示。 */
 .queue-out-divider{align-self:stretch;flex:0 0 30px;min-height:48px;border-left:3px solid #64748b;margin:0 5px;display:flex;align-items:center;justify-content:center;position:relative}
 .queue-out-divider span{writing-mode:vertical-rl;font-size:9px;font-weight:800;letter-spacing:1px;color:#475569;background:#e2e8f0;padding:4px 2px;border-radius:4px}
@@ -754,7 +764,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
-        <div class="parse-help-intro">基本流程：在「录入」页输入订单或命令，按 Ctrl+T 解析并查看下方预览；需要写入、删除、确认或调整队列时，逐项核查勾选状态，再按 Ctrl+Enter 执行。仅解析不会修改数据。</div>
+        <div class="parse-help-intro">基本流程：在「录入」页输入订单或命令，按 Ctrl+T 解析并查看下方预览；需要写入、删除、确认或调整队列时，逐项核查勾选状态，再按 Ctrl+Enter 执行。仅解析不会修改数据。预览列表中，今天的普通订单不显示日期；非今天订单显示实际日期；覆盖已有订单无论日期是否为今天，均显示实际日期，方便核对。</div>
         <div class="help-pagination" aria-label="说明分页导航">
           <button type="button" class="btn btn-outline btn-sm" id="helpPrevBtn" onclick="changeHelpPage(-1)">← 上一页</button>
           <span id="helpPageLabel" aria-live="polite">第 1 / 5 页</span>
@@ -764,8 +774,8 @@ input,select,textarea{font-family:inherit;font-size:16px}
         <div class="help-page" data-help-page="0">
           <div class="parse-help-section">
             <div class="parse-help-title">1. 录入订单：基本格式</div>
-            <div><strong>普通订单：</strong><code>店铺编号 理疗师,序号,金额,时长,房间/标记,备注,客人尾号,时间</code></div>
-            <div class="parse-help-example"><code>4 daisy,3,160,60,4,1107</code> → 店铺编号4（显示为41号店）、理疗师daisy、第3单、金额160、60分钟、4号房、11:07。</div>
+            <div><strong>普通订单：</strong><code>[店铺编号] 理疗师,序号,金额,时长,房间/标记,备注,客人尾号,时间</code>。店铺编号可省略：在「理疗师昵称映射」中为标准姓名设置所属店铺后，直接写姓名即可自动归店。</div>
+            <div class="parse-help-example"><code>daisy,3,160,60,4,1107</code> → 若映射中 daisy 属于店铺4，则自动归入41号店。<br><code>7 daisy,3,160,60,4,1107</code> → 明确写了店铺7，因此以店铺7为准。</div>
             <div><strong>完整格式示例：</strong><code>7 lenabook,1,250,60,过来选,3457v,1200</code>。字段依次是店铺、理疗师/预约标记、序号、金额、时长、房间或标记/备注、客人尾号、时间。book 表示预约。</div>
             <div><strong>无序号格式：</strong><code>4 neha,160,60,3538(jbh),1500</code>。系统自动分配序号；括号中的 j/b/h 分别表示接线、银行转账和一瓶蜂蜜。</div>
             <div>金额和时长可以互换；金额可留空、写 <code>-</code> 或 <code>x</code> 表示价格未知。字段允许留空，但要保留逗号分隔符。时间常用四位 HHMM，例如 <code>1500</code>；三位旧时间也兼容，1～2位数字表示从解析时刻起的分钟偏移。</div>
@@ -778,9 +788,9 @@ input,select,textarea{font-family:inherit;font-size:16px}
           </div>
           <div class="parse-help-section">
             <div class="parse-help-title">3. 微信群记录导入</div>
-            <div>先在「理疗师昵称映射」中设置微信昵称与标准理疗师名称，再粘贴群记录。第一行填写店铺编号，后续按昵称、发送时间、消息内容排列；程序按微信消息时间生成订单。昵称包含映射关键词即可匹配。</div>
+            <div>在「理疗师昵称映射」中设置微信昵称、标准理疗师名称及所属店铺。普通订单可直接写标准理疗师姓名，不必在最前面加店铺编号；若订单行明确写了店铺编号，则以手动编号为准。微信群记录可省略第一行店铺编号，程序按每位发送者的标准姓名/昵称映射自动确定店铺；也可在第一行填写店铺编号，作为整批记录的手动指定店铺。每条消息按自己的发送日期和时间录入。</div>
             <div class="parse-help-example"><code>7<br>蓝蓝<br>2026年11月04日 13:05<br>7/100/20/1</code> → 按映射表将蓝蓝转换为标准理疗师名称，并生成13:05订单。</div>
-            <div>支持常见中文日期、上午/下午和24小时制时间；无映射昵称、普通聊天文字及非订单消息会忽略。微信映射与 Excel 图表中的 Remark ↔ Flora 对照表是两套独立配置。</div>
+            <div>支持常见中文日期、上午/下午和24小时制时间；无映射昵称、普通聊天文字及非订单消息会忽略。所属店铺按标准理疗师姓名保存；同一姓名的昵称别名共用所属店铺。微信映射与 Excel 图表中的 Remark ↔ Flora 对照表是两套独立配置。</div>
           </div>
         </div>
 
@@ -796,14 +806,15 @@ input,select,textarea{font-family:inherit;font-size:16px}
           <div class="parse-help-section">
             <div class="parse-help-title">5. 41号店理疗师队列</div>
             <div>店铺编号4映射显示为「41号店」，内部编号仍是4。名单读取最近72小时真实订单；店铺归属参考最近168小时真实订单。book预约和已取消订单不进入队列。正常轮转按最近符合条件的实际接单时间排列；通常金额大于50的订单参与轮转，白班09:00前订单不改变当天轮转。</div>
-            <div>色块状态：绿色表示正在服务，蓝色表示有未来预约，灰色表示空闲/没有近期轮转订单；「离开」区域中的人员不参加正常队列。点击正常队列色块会清空输入框并填入 <code>set 姓名 out</code>；点击离开色块会填入 <code>set 姓名 number</code>，请把 number 替换为目标位置数字。</div>
+            <div>色块状态：绿色表示正在服务，蓝色表示有未来预约，灰色表示空闲/没有近期轮转订单；「Break」区域中的人员不参加正常队列；临时 Out 人员仍留在原队列位置。点击正常队列色块会填入 <code>set 姓名 out</code> 临时 Out；点击 Break 色块会填入 <code>set 姓名 in</code> 召回。临时 Out 保持原队列位置并显示60分钟倒计时。</div>
             <div>点击色块只填入命令，不执行。按 Ctrl+T 查看调整预览，确认目标和位置无误后按 Ctrl+Enter 执行。</div>
           </div>
           <div class="parse-help-section">
             <div class="parse-help-title">6. set 队列命令</div>
             <div><code>set ivy 7</code> → 将 Ivy 放在第7位理疗师后面；即使她不在最近72小时名单，也会建立临时占位，并跟随所锚定的队列成员移动。</div>
-            <div><code>set ivy out</code> → 将 Ivy 移至离开区域；<code>set ivy in</code> → 从离开区域召回；<code>set 1 2</code> → 将当前第1位理疗师移动到第2位之后。</div>
-            <div>可在命令前指定店铺编号，例如 <code>set 4 ivy 7</code>。临时占位在接到下一笔真实订单后自动转为正常轮转。离开人员最近一笔真实订单超过72小时名单窗口后自动从 out 清除；从未有过真实订单的手动离开项按离开时间保留72小时。</div>
+            <div><code>set 1 out</code> / <code>set ivy out</code> → 临时 Out，保持原队列位置并显示60分钟倒计时；再次执行可重新计时，60分钟未续期自动转入 Break。Out期间接到实际订单，立即取消倒计时并按正常规则移动到队尾。</div>
+            <div><code>set ivy break</code> → 立即移入 Break 区域并取消 Out 倒计时；<code>set ivy in</code> → 从 Break 区域召回；<code>set 1 2</code> → 将当前第1位理疗师移动到第2位之后。</div>
+            <div>可在命令前指定店铺编号，例如 <code>set 4 ivy 7</code>。临时占位在接到下一笔真实订单后自动转为正常轮转。Break 人员仍沿用原有72小时名单清理规则；临时 Out 的倒计时和状态保存在本机，刷新页面不会重置。</div>
             <div><strong>执行流程：</strong>输入命令 → Ctrl+T 解析 → 检查下方队列调整预览 → 勾选该项 → Ctrl+Enter 执行。解析阶段不会改变队列。</div>
           </div>
         </div>
@@ -813,7 +824,9 @@ input,select,textarea{font-family:inherit;font-size:16px}
             <div class="parse-help-title">7. check 查询命令</div>
             <div><code>check book</code> 查询预约；<code>check truda</code> 查询指定理疗师；<code>check 7</code> 查询店铺编号7；<code>check 11-4</code> 查询指定日期。</div>
             <div><code>check 11-4 truda</code> 按日期和理疗师筛选；<code>check 10-5 10-20 qian</code> 查询日期范围；日期可用月-日格式。</div>
+            <div><code>check 3292</code> 按四位客人尾号精确查找所有日期的 book 预约；例如 <code>check 7788</code> 查询尾号 7788。四位数字只有在构成合法 HHMM 时间时才作为时段查询。</div>
             <div><code>check b</code>、<code>check c</code>、<code>check v</code>、<code>check j</code>、<code>check h</code>、<code>check y</code> 查询对应标记；标记可组合，例如 <code>check bcvj</code>。<code>check hh</code> 表示至少两瓶蜂蜜。</div>
+            <div><code>check h bo</code> 查询理疗师 bo 在所有日期的全部蜂蜜订单，显示蜂蜜瓶数、订单数、金额合计及逐笔明细；此格式只匹配普通订单，不匹配 bo 的 book 预约。也可将 bo 换成其他理疗师姓名。</div>
             <div><code>check #</code> 检查序号缺口；<code>check # 11-4</code> 限定日期；<code>check # truda</code> 限定理疗师；<code>check # 11-4 truda</code> 同时限定日期和理疗师。结果超过30项时分页。</div>
             <div>check 只读取订单，不新增、修改或删除。查询结果显示订单状态、金额、时间、时长、房间、尾号和备注；点击订单内容可将其回填到录入框。</div>
           </div>
@@ -1028,7 +1041,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
         <!-- Parse Mode -->
         <div id="parseMode">
           <div class="form-group">
-            <textarea class="form-textarea" id="parseTextarea" placeholder="可一次输入或粘贴一行、多行订单。&#10;&#10;【普通订单】&#10;4 daisy,3,160,60,4,1107&#10;7 zona,2,200,60,3,1224&#10;&#10;【完整格式】&#10;7 lenabook,1,250,60,过来选,3457v,1200&#10;&#10;【简写】&#10;4 daisy,1,1220&#10;4 daisy,1,20&#10;&#10;【预约 book】&#10;4 adelabook,1,1955&#10;4 daisybook,2,7792,20&#10;&#10;【查询】&#10;check book&#10;check truda&#10;check 7&#10;check 10-1&#10;check 10-1 truda&#10;check 10-5 10-20 qian&#10;check #&#10;check # 10-17&#10;check # daisy&#10;check # 10-17 daisy&#10;&#10;【删除】&#10;1 tbook,1,x&#10;4 daisybook,1,160,60,,1100,x&#10;delete 9-1&#10;delete 9-1 10-1&#10;&#10;【手动调整理疗师队列】&#10;set 1 2&#10;set kitty 5&#10;set kitty out&#10;set kitty in&#10;set 4 kitty 8"></textarea>
+            <textarea class="form-textarea" id="parseTextarea" placeholder="可一次输入或粘贴一行、多行订单。&#10;&#10;【普通订单】&#10;4 daisy,3,160,60,4,1107&#10;7 zona,2,200,60,3,1224&#10;&#10;【完整格式】&#10;7 lenabook,1,250,60,过来选,3457v,1200&#10;&#10;【简写】&#10;4 daisy,1,1220&#10;4 daisy,1,20&#10;&#10;【预约 book】&#10;4 adelabook,1,1955&#10;4 daisybook,2,7792,20&#10;&#10;【查询】&#10;check book&#10;check 3292&#10;check truda&#10;check 7&#10;check 10-1&#10;check 10-1 truda&#10;check 10-5 10-20 qian&#10;check #&#10;check # 10-17&#10;check # daisy&#10;check # 10-17 daisy&#10;&#10;【删除】&#10;1 tbook,1,x&#10;4 daisybook,1,160,60,,1100,x&#10;delete 9-1&#10;delete 9-1 10-1&#10;&#10;【手动调整理疗师队列】&#10;set 1 2&#10;set kitty 5&#10;set kitty out&#10;set kitty in&#10;set 4 kitty 8"></textarea>
 
             <div class="form-hint parse-input-note">一行可以输入一条或多条订单；也可以输入查询、删除指令。输入完成后按 <code>Ctrl+T</code> 解析。详细格式与使用说明请查看 <b>说明[H]</b>。</div>
             <div class="quick-command-row" aria-label="常用快捷命令">
@@ -1186,15 +1199,16 @@ input,select,textarea{font-family:inherit;font-size:16px}
 <div class="modal-overlay" id="therapistMapModal">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">理疗师昵称映射表</span>
+      <span class="modal-title">理疗师映射与所属店铺</span>
       <button class="modal-close" onclick="closeModal('therapistMapModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
-      <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">将微信群昵称映射为 Flora 使用的标准理疗师名称。未映射的昵称所对应的订单会忽略。映射会自动保存。</p>
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">将微信昵称映射为 Flora 使用的标准理疗师名称，并为标准姓名指定所属店铺。若不使用微信昵称，可将昵称和标准名称填写为相同内容。录入订单时直接写标准姓名即可自动归店；手动写店铺编号时以手动编号为准。映射会自动保存；已有映射可点击铅笔图标编辑、点击X删除；映射数量超过10条时自动分页。店铺编号映射表同样支持编辑、删除和分页。</p>
       <div id="therapistMapList"></div>
       <div class="shop-map-add">
-        <input type="text" id="newTherapistNickname" placeholder="微信昵称（如：蓝蓝）">
+        <input type="text" id="newTherapistNickname" placeholder="微信昵称/录入名称（如：蓝蓝）">
         <input type="text" id="newTherapistName" placeholder="标准名称（如：lanlan）">
+        <select id="newTherapistShopCode" aria-label="所属店铺" style="min-width:108px;max-width:130px;padding:6px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;min-height:36px;background:#fff"><option value="">所属店铺</option></select>
         <button class="btn btn-primary btn-sm" onclick="addTherapistMap()">添加</button>
       </div>
     </div>
@@ -1217,6 +1231,7 @@ let statsDate = null;
 const STORAGE_KEY='wb_wxorder_orders';
 const SHOPMAP_KEY='wb_wxorder_shopmap';
 const THERAPISTMAP_KEY='wb_wxorder_therapistmap';
+const THERAPIST_SHOPMAP_KEY='wb_wxorder_therapist_shopmap';
 const THERAPIST_QUEUE_KEY='wb_wxorder_therapist_turn_queue_v1';
 let therapistQueueData={shops:{}};
 const COLORS=['#2563eb','#16a34a','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#ef4444','#84cc16','#f97316','#6366f1'];
@@ -1250,6 +1265,7 @@ const futuretimemins = "180";	//超过未来3小时的预约不生成轨道、�
 let orders=[];
 let shopMap={};
 let therapistMap={};
+let therapistShopMap={}; // 标准理疗师名称 -> 所属店铺编号
 let selectedShopCode='';
 let currentPeriod='day';
 let commandChartTherapist='';
@@ -1409,6 +1425,7 @@ function loadData(){
   }catch(e){ orders=[]; }
   try{ shopMap=JSON.parse(localStorage.getItem(SHOPMAP_KEY))||{}; }catch(e){ shopMap={}; }
   try{ therapistMap=JSON.parse(localStorage.getItem(THERAPISTMAP_KEY))||{}; }catch(e){ therapistMap={}; }
+  try{ therapistShopMap=JSON.parse(localStorage.getItem(THERAPIST_SHOPMAP_KEY))||{}; }catch(e){ therapistShopMap={}; }
   if(Object.keys(shopMap).length===0){
     shopMap={'1':'1号店','4':'41号店','7':'7F店','3':'3号店','5':'5号店'};
   }
@@ -1432,6 +1449,7 @@ function saveData(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(orders));
   localStorage.setItem(SHOPMAP_KEY,JSON.stringify(shopMap));
   localStorage.setItem(THERAPISTMAP_KEY,JSON.stringify(therapistMap));
+  localStorage.setItem(THERAPIST_SHOPMAP_KEY,JSON.stringify(therapistShopMap));
   localStorage.setItem(THERAPIST_QUEUE_KEY,JSON.stringify(therapistQueueData));
 }
 
@@ -1506,6 +1524,17 @@ function dateWithOffset(dateStr, dayOffset){
 }
 
 function getShopName(code){ const key=String(code); return shopMap[key]||(key==='4'?'41号店':key+'号店'); }
+// v246：按订单行开头的理疗师标准名称查找所属店铺；book 后缀不影响匹配。
+function resolveTherapistShopCodeFromLine(line){
+  const m=String(line||'').trim().match(/^([a-zA-Z\u4e00-\u9fa5][\w\u4e00-\u9fa5（）@〔〕+\-\[\]]*)\s*[,/]/);
+  if(!m) return '';
+  const target=queueNormalizeName(m[1]);
+  if(!target) return '';
+  for(const [name,code] of Object.entries(therapistShopMap||{})){
+    if(queueNormalizeName(name)===target && String(code||'').trim()) return String(code).trim();
+  }
+  return '';
+}
 function getShopColor(code){
   const keys=Object.keys(shopMap);
   const idx=keys.indexOf(code);
@@ -1621,21 +1650,29 @@ function getTherapistQueueSnapshot(now=new Date()){
     // 即使该店近期没有任何真实订单，也要为人工临时占位保留一个可渲染的队列容器。
     if(!byShop.has(String(shopCode)))byShop.set(String(shopCode),[]);
     const outList=getTherapistQueueOutList(shopCode,true);
-    // 离开名单沿用理疗师队列的72小时名单窗口：最近一笔真实订单已超出72小时，
-    // 即从 out 名单清除；从未有过真实订单的手动离开项，则从 outAt 起保留72小时。
+    // v246：临时 Out 只有60分钟；到期自动转成正式 Break。Break 沿用原有72小时名单清理规则。
     for(let i=outList.length-1;i>=0;i--){
       const person=outList[i];
       if(!person||!person.key){outList.splice(i,1);continue;}
-      const latest=latestActualOrder.get(person.key);
-      const expiryBase=latest?.dt?.getTime() ?? Date.parse(person.outAt||'');
-      if(!Number.isFinite(expiryBase)||expiryBase<rosterCutoff){outList.splice(i,1);}
+      if(person.mode==='out'){
+        const deadline=Date.parse(person.expiresAt||'');
+        if(!Number.isFinite(deadline)||deadline<=now.getTime()){
+          person.mode='break';person.breakAt=new Date(now).toISOString();delete person.expiresAt;saveData();
+        }
+      }
+      if(person.mode!=='out'){
+        const latest=latestActualOrder.get(person.key);
+        const expiryBase=latest?.dt?.getTime() ?? Date.parse(person.breakAt||person.outAt||'');
+        if(!Number.isFinite(expiryBase)||expiryBase<rosterCutoff)outList.splice(i,1);
+      }
     }
     outList.forEach(person=>{
       if(!person||!person.key)return;
+      if(person.mode==='out')return; // 临时 Out 不移出正常队列，稍后叠加到原队列成员上。
       if(!outKeysByShop.has(String(shopCode)))outKeysByShop.set(String(shopCode),new Set());
       outKeysByShop.get(String(shopCode)).add(person.key);
       if(!byShop.has(String(shopCode)))byShop.set(String(shopCode),[]);
-      byShop.get(String(shopCode)).push({key:person.key,name:person.name||person.key,shopCode:String(shopCode),lastTurnAt:null,lastShopAt:null,isOut:true});
+      byShop.get(String(shopCode)).push({key:person.key,name:person.name||person.key,shopCode:String(shopCode),lastTurnAt:null,lastShopAt:null,isOut:true,isBreak:true});
     });
   });
   roster.forEach((entry,key)=>{
@@ -1654,7 +1691,9 @@ function getTherapistQueueSnapshot(now=new Date()){
     const latestShopOrderMinutes=latestShopOrder.getHours()*60+latestShopOrder.getMinutes();
     const returnedAfterThreeDays=latestShopOrderDate===todayKey&&latestShopOrderMinutes>=540&&(!previousSameShopOrder||previousSameShopOrder.getTime()<latestShopOrder.getTime()-72*60*60*1000);
     const effectiveTurnAt=returnedAfterThreeDays?latestShopOrder:(turn?.dt||null);
-    const item={key,name:entry.name,shopCode,lastTurnAt:effectiveTurnAt,lastShopAt:location.dt};
+    const tempOut=getTherapistQueueOutList(shopCode,false).find(person=>person&&person.key===key&&person.mode==='out');
+    const expiresAt=tempOut?Date.parse(tempOut.expiresAt||''):NaN;
+    const item={key,name:entry.name,shopCode,lastTurnAt:effectiveTurnAt,lastShopAt:location.dt,isTempOut:!!tempOut,outAt:tempOut?.outAt||'',expiresAt:Number.isFinite(expiresAt)?expiresAt:null,outRemainingMs:Number.isFinite(expiresAt)?Math.max(0,expiresAt-now.getTime()):0};
     if(!byShop.has(shopCode))byShop.set(shopCode,[]);
     byShop.get(shopCode).push(item);
   });
@@ -1752,7 +1791,7 @@ function renderTherapistQueueInline(code,list,now=new Date()){
   const contentId=`timelineQueueContent_${safe}`;
   // v227：刷新队列内容时保留用户手动折叠/展开状态；v228：内容相同时跳过DOM替换。
   const wasCollapsed=!!host.querySelector(`#${contentId}`)?.classList.contains('turn-queue-collapsed');
-  const nextHTML=`<button type="button" class="turn-queue-toggle" aria-expanded="${!wasCollapsed}" onclick="toggleTherapistQueuePanel('${contentId}')"><strong><svg class="turn-queue-heading-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20v-1.5A5.5 5.5 0 0 1 8 13h2a5.5 5.5 0 0 1 5.5 5.5V20"></path><path d="M16 5.5a3.5 3.5 0 0 1 0 6.8M18 14a4.5 4.5 0 0 1 3.5 4.3V20"></path></svg>${escapeHtml(shopMap[code]||`${code}号店`)}理疗师队列</strong><small>${list.filter(item=>!item.isOut).length}位在队列${list.some(item=>item.isOut)?` · ${list.filter(item=>item.isOut).length}位离开`:``} · 最近3天名单</small><span class="turn-queue-arrow">${wasCollapsed?'展开 ▾':'折叠 ▴'}</span></button><div id="${contentId}"${wasCollapsed?' class="turn-queue-collapsed"':''}><div class="turn-queue-strip">${renderTherapistQueueShopPanel(code,list,now,true)||'<div class="turn-queue-empty">暂无理疗师</div>'}</div></div>`;
+  const nextHTML=`<button type="button" class="turn-queue-toggle" aria-expanded="${!wasCollapsed}" onclick="toggleTherapistQueuePanel('${contentId}')"><strong><svg class="turn-queue-heading-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20v-1.5A5.5 5.5 0 0 1 8 13h2a5.5 5.5 0 0 1 5.5 5.5V20"></path><path d="M16 5.5a3.5 3.5 0 0 1 0 6.8M18 14a4.5 4.5 0 0 1 3.5 4.3V20"></path></svg>${escapeHtml(shopMap[code]||`${code}号店`)}理疗师队列</strong><small>${list.filter(item=>!item.isOut).length}位在队列${list.some(item=>item.isOut)?` · ${list.filter(item=>item.isOut).length}位Break`:``} · 最近3天名单</small><span class="turn-queue-arrow">${wasCollapsed?'展开 ▾':'折叠 ▴'}</span></button><div id="${contentId}"${wasCollapsed?' class="turn-queue-collapsed"':''}><div class="turn-queue-strip">${renderTherapistQueueShopPanel(code,list,now,true)||'<div class="turn-queue-empty">暂无理疗师</div>'}</div></div>`;
   // v228：队列显示内容未变化时绝不重写 DOM；避免每2秒触发 Safari 滚动锚定。
   if(host.innerHTML!==nextHTML)host.innerHTML=nextHTML;
 }
@@ -1760,12 +1799,12 @@ function queueChipCommand(shopCode,name,isOut){
   const input=document.getElementById('parseTextarea');if(!input)return;
   const safeName=String(name||'').trim();if(!safeName)return;
   const prefix=String(shopCode)==='4'?'':`${shopCode} `;
-  input.value=isOut?`set ${prefix}${safeName} number`:`set ${prefix}${safeName} out`;
+  input.value=isOut?`set ${prefix}${safeName} in`:`set ${prefix}${safeName} out`;
   parseResults=[];parsedDate='';
   const result=document.getElementById('parseResult');if(result)result.innerHTML='';
   const check=document.getElementById('checkResult');if(check){check.innerHTML='';check.classList.add('hidden');}
   switchTab('add');
-  showToast(isOut?'已填入召回命令；请把 number 替换为目标位置数字，再按 Ctrl+T 预览。':'已填入移出命令；按 Ctrl+T 查看预览，Ctrl+Enter 执行。','info');
+  showToast(isOut?'已填入 Break 召回命令；按 Ctrl+T 预览。':'已填入临时 Out 命令；按 Ctrl+T 预览，Ctrl+Enter 执行。','info');
 }
 
 function renderTherapistQueueShopPanel(code,list,now=new Date(),compact=false){
@@ -1773,7 +1812,7 @@ function renderTherapistQueueShopPanel(code,list,now=new Date(),compact=false){
   const active=list.filter(item=>!item.isOut);
   const out=list.filter(item=>item.isOut);
   const renderChip=(item,i,isOut)=>{
-    if(isOut)return `<div class="turn-queue-chip queue-out-chip" role="button" tabindex="0" onclick="queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)}" title="点击填入 set ${escapeAttr(item.name)} number；替换 number 为目标位置"><strong>${escapeHtml(item.name)}</strong><small>离开 · 点击召回</small></div>`;
+    if(isOut)return `<div class="turn-queue-chip queue-out-chip" role="button" tabindex="0" onclick="queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)}" title="点击填入 set ${escapeAttr(item.name)} in，召回理疗师"><strong>${escapeHtml(item.name)}</strong><small>Break · 点击召回</small></div>`;
     const busy=getTherapistBusyInfo(code,item.name,now);
     const booked=getTherapistNextBook(code,item.name,now);
     const cls=busy.busy?'busy':booked?'booked':item.lastTurnAt?'idle':'no-turn';
@@ -1781,11 +1820,16 @@ function renderTherapistQueueShopPanel(code,list,now=new Date(),compact=false){
     const state=busy.busy?busyRoomText:booked?`预约 ${formatTime(booked.order.time)}`:item.lastTurnAt?`上次 ${item.lastTurnAt.toLocaleTimeString('zh-NZ',{hour:'2-digit',minute:'2-digit'})}`:'暂无>50订单';
     const title=`${item.name}｜${busy.busy?busyRoomText:booked?'有预约':'空闲'}${booked?'｜预约 '+booked.order.date+' '+formatTime(booked.order.time):''}`;
     const bookedLine=busy.busy&&booked?`<small class="queue-book-line">预约 ${escapeHtml(formatTime(booked.order.time))}</small>`:'';
+    if(item.isTempOut){
+      const seconds=Math.max(0,Math.ceil(((Number(item.expiresAt)||now.getTime())-now.getTime())/1000));
+      const mm=String(Math.floor(seconds/60)).padStart(2,'0'),ss=String(seconds%60).padStart(2,'0');
+      return `<div class="turn-queue-chip queue-temp-out" role="button" tabindex="0" onclick="queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',false)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',false)}" title="临时 Out；再次执行 set ${escapeAttr(item.name)} out 可重新计时"><strong>${i+1}. ${escapeHtml(item.name)}</strong><small>OUT · ${mm}:${ss}</small></div>`;
+    }
     return `<div class="turn-queue-chip ${cls}" role="button" tabindex="0" onclick="queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',false)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',false)}" title="点击填入 set ${escapeAttr(item.name)} out；按 Ctrl+T 预览"><strong>${i+1}. ${escapeHtml(item.name)}</strong><small>${escapeHtml(state)}</small>${bookedLine}</div>`;
   };
   const activeHTML=active.map((item,i)=>renderChip(item,i,false)).join('');
   const outHTML=out.map((item,i)=>renderChip(item,i,true)).join('');
-  const separator=out.length?`<div class="queue-out-divider" aria-label="正常队列与离开人员分隔"><span>离开</span></div>`:'';
+  const separator=out.length?`<div class="queue-out-divider" aria-label="正常队列与Break人员分隔"><span>Break</span></div>`:'';
   const content=activeHTML+separator+outHTML;
   return compact?content:`<section class="turn-queue-shop-panel"><h4>${escapeHtml(shopName)} · ${active.length}位在队列${out.length?` · ${out.length}位离开`:''}</h4><div class="turn-queue-strip">${content||'<div class="turn-queue-empty">最近3天没有理疗师订单</div>'}</div></section>`;
 }
@@ -1808,7 +1852,7 @@ function renderTherapistTurnQueue(){
     if(matched)renderTherapistQueueInline(matched,all.get(matched),now);
   });
   const summary=document.getElementById('therapistTurnQueueSummary');
-  if(summary)summary.textContent=`${primaryActive.length}位在队列${primary.length-primaryActive.length?` · ${primary.length-primaryActive.length}位离开`:''} · 最近3天名单 · 最近7天店铺归属`;
+  if(summary)summary.textContent=`${primaryActive.length}位在队列${primary.length-primaryActive.length?` · ${primary.length-primaryActive.length}位Break`:''} · 最近3天名单 · 最近7天店铺归属`;
   const allWrap=document.getElementById('therapistStatsQueuesWrap');
   if(allWrap){
     const codes=[...all.keys()].sort((a,b)=>a==='4'?-1:b==='4'?1:a.localeCompare(b,undefined,{numeric:true}));
@@ -2429,7 +2473,7 @@ function findUnusedSeqNo(shopCode, sales, targetDate){
     shopCode:o.shopCode,
     sales:o.sales,
     seqNo:o.seqNo,
-    date:dateWithOffset(parsedDate||todayStr(),o.dayOffset)
+    date:dateWithOffset(o.inputDate||parsedDate||todayStr(),o.dayOffset)
   }));
   let n=1;
   while(used.has(n)) n++;
@@ -3084,7 +3128,9 @@ function handleCheckCommand(text){
   // 时段格式：check 0930-2130 / check 0930 2130；省略结束时间时默认到当前时间。
   // 支持 check 0900、check 0900-，结束时间均取执行命令时的本地当前时间。
   const periodMatch=keyword.match(/^(\d{4})(?:\s*-\s*(\d{4})?|\s+(\d{4}))?$/);
-  if(periodMatch){
+  // 只有合法 HHMM 才作为时段查询；例如 3292 是尾号，不应被误判成时间。
+  const isValidPeriod=!!periodMatch && checkClockToMinutes(periodMatch[1])!==null && (!(periodMatch[2]||periodMatch[3]) || checkClockToMinutes(periodMatch[2]||periodMatch[3])!==null);
+  if(isValidPeriod){
     const startText=periodMatch[1];
     const now=new Date();
     const currentTime=String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
@@ -3157,6 +3203,8 @@ function handleCheckCommand(text){
     tokens.forEach(token=>{ if(/^\d+$/.test(token) && !shopFilter) shopFilter=token; else rest.push(token); });
     const therapistNames=rest.join(' ').split(',').map(v=>v.trim()).filter(Boolean);
     const therapistKeys=therapistNames.map(normalizeSalesBase);
+    // v244：check h 理疗师命令（如 check h bo）只查该理疗师的普通蜂蜜订单；不匹配任何 book 预约，也不把 book 后缀剥掉后再匹配。
+    const exactHoneyTherapistKeys=marker==='h' ? therapistNames.map(normalizeSales) : [];
     if(dateStart && dateEnd && dateStart>dateEnd){ const tmp=dateStart; dateStart=dateEnd; dateEnd=tmp; }
     const yOrders=orders.filter(o=>{
       if(legacyByQuery){
@@ -3169,7 +3217,10 @@ function handleCheckCommand(text){
       const d=String(o.date||'');
       if(dateStart && (d<dateStart || d>dateEnd)) return false;
       if(shopFilter && String(o.shopCode||'')!==shopFilter) return false;
-      if(therapistKeys.length && !therapistKeys.includes(normalizeSalesBase(o.sales))) return false;
+      if(marker==='h' && therapistNames.length){
+        if(isBook(o.sales)) return false;
+        if(!exactHoneyTherapistKeys.includes(normalizeSales(o.sales))) return false;
+      }else if(therapistKeys.length && !therapistKeys.includes(normalizeSalesBase(o.sales))) return false;
       return true;
     });
     // v182：标记查询按日期倒序、理疗师归组、组内时间倒序。
@@ -3279,6 +3330,11 @@ function handleCheckCommand(text){
       mode='books';
       // book / books 均查询所有日期的预约。
       matchedOrders=orders.filter(o=>isBook(o.sales));
+    }else if(/^\d{4}$/.test(keyword)){
+      // check 3292：按四位客人尾号查找所有日期的 book 预约，尾号按字符串精确匹配并保留前导零。
+      mode='guestTail';
+      const requestedTail=normalizeGuestTail(keyword);
+      matchedOrders=orders.filter(o=>isBook(o.sales) && getGuestTail(o)===requestedTail);
     }else if(/^nextbooks?$/i.test(keyword)){
       mode='nextBooks';
       const now=new Date();
@@ -3320,8 +3376,8 @@ function handleCheckCommand(text){
       if(ta!==tb)return ta.localeCompare(tb);
       return Number(a.seqNo||0)-Number(b.seqNo||0);
     }
-    // 全日期 book 查询：日期从新到旧，同一天内时间从晚到早。
-    if(mode==='books'){
+    // 尾号查询跨全部日期，按预约日期和时间从新到旧排列。
+    if(mode==='guestTail' || mode==='books'){
       const da=String(a.date||'');
       const db=String(b.date||'');
       if(da!==db) return db.localeCompare(da);
@@ -3363,7 +3419,9 @@ function handleCheckCommand(text){
           ? '所有日期的预约'
           : mode==='nextBooks'
             ? '接下来预约单'
-            : targetDate;
+            : mode==='guestTail'
+              ? `尾号 ${keyword} 的预约`
+              : targetDate;
     showToast(`未找到 ${targetLabel} 的订单`,'error');
     return true;
   }
@@ -3374,15 +3432,18 @@ function handleCheckCommand(text){
 
 function convertWechatLogToOrders(inputText){
   const rawLines=String(inputText||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  if(rawLines.length<3 || !/^\d+$/.test(rawLines[0])) return inputText;
+  if(rawLines.length<3) return inputText;
+  // v247：店铺标题可省略；有纯数字首行时仍视为用户明确指定的整批店铺。
+  const explicitBatchShop= /^\d+$/.test(rawLines[0]) ? rawLines.shift() : ''; 
   // v191：兼容不同微信版本的两种排版：昵称与时间分行，或昵称+时间合并在同一行。
   // 时间戳允许出现在行内；理疗师映射支持昵称前后附带其他文字的包含式模糊匹配。
   // 保持基础 RegExp 写法，兼容 Safari 15.6。
   const timestampRegex=/(\d{4})(?:年|[-/.])(\d{1,2})(?:月|[-/.])(\d{1,2})日?\s*(上午|下午)?\s*(\d{1,2}):(\d{2})/;
   const hasTimestamp=rawLines.some(line=>timestampRegex.test(line));
   if(!hasTimestamp) return inputText;
-  const shopCode=rawLines[0];
-  const output=[shopCode];
+  const output=[];
+  let activeWechatShopCode='';
+  let activeWechatDate='';
   let firstDate='';
   // 记录每位理疗师最近一笔已识别订单在 output 中的位置，供后续独立蜂蜜消息回标。
   const lastWechatOrderIndexByTherapist=Object.create(null);
@@ -3396,30 +3457,45 @@ function convertWechatLogToOrders(inputText){
     return parts.join(',');
   };
   const pushWechatOrder=(therapist,line)=>{
-    output.push(line);
+    if(activeWechatDate) output.push(activeWechatDate);
+    // 每笔记录独立带店铺，避免不同理疗师被错误继承同一个店铺。
+    output.push(`${activeWechatShopCode ? activeWechatShopCode+' ' : ''}${line}`);
     lastWechatOrderIndexByTherapist[therapist]=output.length-1;
   };
   const normalizeWechatNickname=value=>String(value||'').toLowerCase().replace(/[\s\p{P}\p{S}]/gu,'');
   const resolveWechatTherapist=source=>{
     const raw=String(source||'').trim();
-    if(Object.prototype.hasOwnProperty.call(therapistMap,raw)) return String(therapistMap[raw]||'').trim();
     const normalized=normalizeWechatNickname(raw);
+    // 优先匹配已配置的微信昵称，再兼容直接输入标准理疗师姓名。
+    if(Object.prototype.hasOwnProperty.call(therapistMap,raw)){
+      const name=String(therapistMap[raw]||'').trim();
+      if(name) return {name,shopCode:String(therapistShopMap[queueNormalizeName(name)]??therapistShopMap[name]??'').trim()};
+    }
     const keys=Object.keys(therapistMap).sort((a,b)=>String(b).length-String(a).length);
     for(let k=0;k<keys.length;k++){
       const key=String(keys[k]||'').trim();
       const normalizedKey=normalizeWechatNickname(key);
       if(normalizedKey && normalized.indexOf(normalizedKey)!==-1){
-        const mapped=String(therapistMap[key]||'').trim();
-        if(mapped) return mapped;
+        const name=String(therapistMap[key]||'').trim();
+        if(name) return {name,shopCode:String(therapistShopMap[queueNormalizeName(name)]??therapistShopMap[name]??'').trim()};
       }
     }
     const aliases={'自信女人':'qian','T宝贝':'t'};
     const aliasKeys=Object.keys(aliases).sort((a,b)=>b.length-a.length);
     for(let k=0;k<aliasKeys.length;k++){
       const key=normalizeWechatNickname(aliasKeys[k]);
-      if(key && normalized.indexOf(key)!==-1) return aliases[aliasKeys[k]];
+      if(key && normalized.indexOf(key)!==-1){
+        const name=aliases[aliasKeys[k]];
+        return {name,shopCode:String(therapistShopMap[queueNormalizeName(name)]??therapistShopMap[name]??'').trim()};
+      }
     }
-    return '';
+    const standardNames=Object.keys(therapistShopMap||{}).sort((a,b)=>String(b).length-String(a).length);
+    for(let k=0;k<standardNames.length;k++){
+      const name=String(standardNames[k]||'').trim();
+      const key=normalizeWechatNickname(name);
+      if(key && normalized===key) return {name,shopCode:String(therapistShopMap[name]??therapistShopMap[queueNormalizeName(name)]??'').trim()};
+    }
+    return null;
   };
   for(let i=1;i<rawLines.length;i++){
     const tm=rawLines[i].match(timestampRegex);
@@ -3427,9 +3503,12 @@ function convertWechatLogToOrders(inputText){
     const prefix=rawLines[i].slice(0,tm.index).trim();
     const nickname=prefix || (rawLines[i-1]||'').trim();
     const rawMessage=(rawLines[i+1]||'').trim();
-    const standardName=resolveWechatTherapist(nickname);
-    // 只接受有效订单简写；普通文字、下线与图片直接忽略。
-    if(!standardName) continue;
+    const resolvedTherapist=resolveWechatTherapist(nickname);
+    // 兼容映射昵称及直接输入标准姓名；无映射的聊天发送者不生成订单。
+    if(!resolvedTherapist) continue;
+    const standardName=resolvedTherapist.name;
+    activeWechatShopCode=explicitBatchShop || resolvedTherapist.shopCode || '';
+    activeWechatDate=`${tm[1]}-${String(tm[2]).padStart(2,'0')}-${String(tm[3]).padStart(2,'0')}`;
     const date=`${tm[1]}-${String(tm[2]).padStart(2,'0')}-${String(tm[3]).padStart(2,'0')}`;
     let hour=Number(tm[5]), minute=Number(tm[6]);
     if(tm[4]==='下午' && hour<12) hour+=12;
@@ -3527,17 +3606,17 @@ function convertWechatLogToOrders(inputText){
     const fields=message.replace(/\s*\/\s*/g,',').replace(/\s*,\s*/g,',');
     pushWechatOrder(standardName,`${standardName},${fields},${time}`);
   }
-  if(firstDate) output.splice(1,0,firstDate); // 放入独立日期行，交给现有解析器设置订单日期。
-  // 没有任何可识别订单时仍返回店铺编号，让解析结果为空而不是把原始聊天内容报成错误。
-  return output.join('\n');
+  // 每笔订单前均写入该条微信消息的日期，且每笔订单独立带店铺编号。
+  // 没有识别出订单时返回原文，避免误把聊天文本转换成空订单。
+  return output.length ? output.join('\n') : inputText;
 }
 
 // v239：set/confirm 均先生成可勾选预览；只有 Ctrl+Enter 才修改数据。
 function handleSetQueueCommand(text){
   const raw=String(text||'').trim();
   if(!/^set(?:\s|$)/i.test(raw))return false;
-  const match=raw.match(/^set\s+(.+?)\s+(in|out|\d+)\s*$/i);
-  if(!match){showToast('用法：set 1 2、set ivy 7、set ivy out、set ivy in；召回命令请把 number 替换为目标数字。','error');return true;}
+  const match=raw.match(/^set\s+(.+?)\s+(in|out|break|\d+)\s*$/i);
+  if(!match){showToast('用法：set 1 2、set ivy 7、set 1 out、set ivy out、set ivy break、set ivy in。','error');return true;}
   const left=match[1].trim().split(/\s+/);
   let shopCode='4',targetToken='';
   if(left.length>=2&&/^\d+$/.test(left[0])){shopCode=left.shift();targetToken=left.join(' ');}
@@ -3560,8 +3639,9 @@ function handleSetQueueCommand(text){
   }
   if(!target){showToast(`在${getShopName(shopCode)}中找不到“${targetToken}”。`,'error');return true;}
   let preview='';
-  if(action==='out')preview=`将 ${target.name} 移到「离开」区域，不再参与正常轮转；真实订单超过72小时名单窗口后自动从 out 清除。`;
-  else if(action==='in')preview=`将 ${target.name} 从「离开」区域召回，恢复正常队列规则。`;
+  if(action==='out')preview=`将 ${target.name} 标记为临时 Out：保持当前队列位置并显示60分钟倒计时；再次执行可重新计时，60分钟未续期自动转入 Break；期间接到实际订单则立即取消 Out 并按正常规则移至队尾。`;
+  else if(action==='break')preview=`将 ${target.name} 立即移入 Break 区域，并取消正在进行的 Out 倒计时。`;
+  else if(action==='in')preview=`将 ${target.name} 从 Break 区域召回，恢复正常队列规则。`;
   else preview=`将 ${target.name} 加入/调整到 ${getShopName(shopCode)} 队列，排在第 ${Number(action)} 位理疗师之后；接到下一笔真实订单后解除人工位置。`;
   const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
   parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${shopCode==='4'?'':shopCode+' '}${target.name} ${action}`,shopCode:String(shopCode),targetKey:target.key,targetName:target.name,targetPosition:/^\d+$/.test(action)?Number(action):null,setAction:action,extra:preview}];
@@ -3610,9 +3690,17 @@ function applySetQueueCommand(r){
   const outList=getTherapistQueueOutList(shopCode,true);
   const outIndex=outList.findIndex(item=>item&&item.key===key);
   if(action==='out'){
-    if(outIndex<0)outList.push({key,name,outAt:new Date().toISOString()});
+    const now=new Date(),record={key,name,mode:'out',outAt:now.toISOString(),expiresAt:new Date(now.getTime()+60*60*1000).toISOString()};
+    if(outIndex>=0)outList[outIndex]=record;else outList.push(record);
+    saveData();
+    return `${name} 已标记为临时 Out，保持原队列位置；60分钟后自动转入 Break。`;
+  }
+  if(action==='break'){
+    const now=new Date(),record={key,name,mode:'break',outAt:now.toISOString(),breakAt:now.toISOString()};
+    if(outIndex>=0)outList[outIndex]=record;else outList.push(record);
     const moves=getTherapistQueueManualMoves(shopCode,true);const mi=moves.findIndex(item=>item&&item.key===key);if(mi>=0)moves.splice(mi,1);
-    return `${name} 已移至 ${getShopName(shopCode)} 的离开区域。`;
+    saveData();
+    return `${name} 已移入 ${getShopName(shopCode)} 的 Break 区域，Out 倒计时已取消。`;
   }
   if(action==='in'){
     if(outIndex>=0)outList.splice(outIndex,1);
@@ -3720,7 +3808,9 @@ function parseMessages(){
 
   // 微信群记录模式：第一行是店铺编号，之后按“昵称 / 发送时间 / 消息内容”排列。
   // 仅在检测到微信时间戳时启用，普通订单输入保持原样。
+  const originalWechatInput=text;
   text=convertWechatLogToOrders(text);
+  const convertedWechatLog=text!==originalWechatInput;
 
   lastCheckQueryMeta=null;
   // v151：外场转帐快捷写法。
@@ -3876,6 +3966,7 @@ function parseMessages(){
 
   let currentShopCode='';
   let currentShopName='';
+  let currentShopExplicit=false; // 仅独立店铺编号行作为后续订单的显式店铺上下文
   // Regex to detect if a line starts with a shop code: pure number followed by space
   const shopLineRegex=/^(\d+)\s+(.*)/;
   // Regex to find orders: name/number/number/.../number
@@ -3886,6 +3977,7 @@ function parseMessages(){
 
   // Helper: extract all orders from a text string, assign to current shop
   function extractOrders(text){
+    const resultStartIndex=parseResults.length;
     // v223：完整预留空字段的预约格式。金额为空时，跳过空占位，首个非空数字为时长，
     // 随后的3-4位数字（可附六类标记）是客人尾号，不是房号；例如 lily,,,60,0298,1440。
     // 只有这种明确的空字段布局才按固定位置处理；省略逗号的短格式仍交给智能解析。
@@ -4732,34 +4824,52 @@ function parseMessages(){
 
       parseResults.push({id:uid(),raw:sales+'/'+dataStr,shopCode:currentShopCode,shopName:currentShopName,sales,seqNo,amount,amountUnknown,time,extra,duration,room,guestTail,note,selfBooked,bankTransfer,cardPayment,vip,offsite,phoneOrder,honey,honeyCount:Math.max(honeyCount,honey?1:0),dayOffset,matched,selected:matched});
     }
+    if(convertedWechatLog){
+      parseResults.slice(resultStartIndex).forEach(r=>{if(r && !r.inputDate) r.inputDate=parsedDate||todayStr();});
+    }
   }
 
   // Date patterns to skip (not order lines): 8月7日, 8-7, 08-07, 2026-08-07
   const dateLineRegex=/^\d{1,2}\s*月\s*\d{1,2}\s*日?$|^\d{1,2}-\d{1,2}$|^\d{4}-\d{1,2}-\d{1,2}$/;
 
   normalLines.forEach(line=>{
-    // Skip pure date lines (8月7日, 2026-08-07)
+    // v247：微信记录转换后每笔订单前都有自己的日期；切换日期行时更新后续订单日期。
+    if(/^\d{4}-\d{1,2}-\d{1,2}$/.test(line)){
+      const parts=line.split('-').map(Number);
+      const d=new Date(parts[0],parts[1]-1,parts[2]);
+      if(parts[1]>=1&&parts[1]<=12&&parts[2]>=1&&d.getFullYear()===parts[0]&&d.getMonth()===parts[1]-1&&d.getDate()===parts[2]) parsedDate=line;
+      return;
+    }
+    // Skip other pure date lines (8月7日, 11-19).
     if(dateLineRegex.test(line)) return;
     const shopMatch=line.match(shopLineRegex);
     if(shopMatch){
       // This line starts with a shop code
       currentShopCode=shopMatch[1];
       currentShopName=getShopName(currentShopCode);
+      currentShopExplicit=false; // 行首编号只约束本行；下一行按姓名映射重新判断
       // The rest of the line (after shop code) may contain orders
       extractOrders(shopMatch[2]);
     } else {
-      // This line is a continuation of the previous shop
-      // But if no shop has been set yet, try to detect a bare number as shop code
-      if(!currentShopCode){
-        // Maybe the whole line is just a number (shop code only, no orders on this line)
-        if(/^\d+$/.test(line)){
-          currentShopCode=line;
-          currentShopName=getShopName(currentShopCode);
-        } else {
-          parseResults.push({id:uid(),raw:line,matched:false,error:'未识别到店铺编号'});
-        }
+      // v246：未明确填写店铺编号时，按订单行开头的理疗师标准姓名自动选择所属店铺。
+      // 如果用户明确写了店铺编号，上面的 shopMatch 分支优先执行，不会被映射覆盖。
+      if(/^\d+$/.test(line) && !currentShopCode){
+        currentShopCode=line;
+        currentShopName=getShopName(currentShopCode);
+        currentShopExplicit=true;
       } else {
-        extractOrders(line);
+        const mappedShopCode=resolveTherapistShopCodeFromLine(line);
+        if(mappedShopCode){
+          currentShopCode=mappedShopCode;
+          currentShopName=getShopName(currentShopCode);
+          currentShopExplicit=false;
+          extractOrders(line);
+        } else if(currentShopCode && currentShopExplicit){
+          // 仅当此前有用户明确填写的店铺编号时，才沿用旧式“店铺行 + 后续订单行”格式。
+          extractOrders(line);
+        } else {
+          parseResults.push({id:uid(),raw:line,matched:false,error:'未设置理疗师所属店铺；请在理疗师映射中指定，或在订单前填写店铺编号'});
+        }
       }
     }
   });
@@ -4769,7 +4879,7 @@ function parseMessages(){
   const previewBaseDate=parsedDate||todayStr();
   parseResults.forEach(r=>{
     if(!r || !r.matched || r.action || r.action==='check') return;
-    const targetDate=dateWithOffset(previewBaseDate,r.dayOffset);
+    const targetDate=dateWithOffset(r.inputDate||previewBaseDate,r.dayOffset);
     const existing=orders.find(o=>
       o.date===targetDate && o.shopCode===r.shopCode && o.sales===r.sales &&
       (r.seqNo ? o.seqNo===r.seqNo : (!o.seqNo && o.time===r.time))
@@ -5544,8 +5654,19 @@ function renderParseResults(){
   if(!hasConfirmOrders&&!hasSetQueue)html+='<label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="date" id="parseDate" value="'+(parsedDate||todayStr())+'" onchange="updateParsedDateFromInput(this)" style="padding:4px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;min-height:36px"><span>统一日期[D]</span></label>';
   html+='</div>';
 
+  const previewToday=todayStr();
+  const formatPreviewDateLabel=(dateValue,forceShow=false)=>{
+    const value=String(dateValue||'').slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||(!forceShow&&value===previewToday))return '';
+    const [year,month,day]=value.split('-');
+    const currentYear=previewToday.slice(0,4);
+    return year===currentYear?`${Number(month)}月${Number(day)}日`:`${year}年${Number(month)}月${Number(day)}日`;
+  };
   parseResults.forEach((r,i)=>{
     const color=r.action==='deleteRange'?'var(--danger)':getShopColor(r.shopCode);
+    const effectivePreviewDate=r.date||dateWithOffset(r.inputDate||parsedDate||previewToday,r.dayOffset);
+    const previewDateLabel=formatPreviewDateLabel(effectivePreviewDate,!!r.willOverwrite);
+    const previewDateHtml=previewDateLabel?`<span class=\"parse-preview-date\" style=\"display:inline-block;margin-right:6px;padding:1px 5px;border-radius:4px;background:var(--primary-light);color:var(--primary-dark);font-size:11px;font-weight:700;white-space:nowrap\">${escapeHtml(previewDateLabel)}</span>`:'';
     if(r.matched){
       if(r.action==='confirmOrder'){
         const o=r.orderRef||{};
@@ -5589,7 +5710,7 @@ function renderParseResults(){
           <div class="check ${r.selected?'done':''}" onclick="toggleParse(${i})">${r.selected?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12</polyline></svg>':''}</div>
           <div class="parse-item-content" onclick="insertCheckOrder(${parseResults.indexOf(r)})" title="点击将此订单内容插入录入订单文本框" style="cursor:pointer">
             <div class="check-result-main">
-              <span class="parse-item-shop check-field" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
+              ${previewDateHtml}<span class="parse-item-shop check-field" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
               <span class="check-field">${escapeHtml(r.sales)}</span>${bookMark}
               ${r.seqNo?`<span class="check-field" style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}
               <span class="check-result-status" style="color:${statusColor}">${escapeHtml(statusText)}</span>
@@ -5618,7 +5739,7 @@ function renderParseResults(){
       html+=`<div class="parse-item" style="${parseRowStyle}">
         <div class="check ${r.selected?'done':''}" onclick="toggleParse(${i})">${r.selected?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
         <div class="parse-item-content">
-          <span class="parse-item-shop" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
+          ${previewDateHtml}<span class="parse-item-shop" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
           · ${escapeHtml(r.sales)} ${r.seqNo?`<span style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}${r.phoneOrder?' ☎':''}${r.selfBooked?' 📞':''}${r.bankTransfer?' 🏦':''}${r.cardPayment?' 💳':''}${r.vip?' <span class=\"vip-mark\" title=\"VIP\">♛</span>':''}${getHoneyCount(r)>0?` ${honeyCountLabel(r)}`:''}
           ${r.action==='delete' ? '<span style="color:var(--danger);font-weight:700"> · 删除预约</span>' : `
           · ${r.amountUnknown?'<span style="color:var(--warn);font-weight:600">价格未知</span>':'<span class="parse-item-amount">¥'+r.amount.toFixed(2)+'</span>'}`}
@@ -5724,7 +5845,7 @@ function batchAddParse(){
   selected.forEach(r=>{
     // 普通新增/更新订单：2位数“+N分钟”若跨过午夜，订单日期自动顺延。
     // 删除指令始终使用用户选择的统一日期，不套用时间偏移。
-    const orderDate=r.action==='delete' ? date : dateWithOffset(date,r.dayOffset);
+    const orderDate=r.action==='delete' ? date : dateWithOffset(r.inputDate||date,r.dayOffset);
 
     // 日期批量删除：删除指定日期范围内的全部订单记录（含已确认、待确认、已取消）。
     if(r.action==='deleteRange'){
@@ -6496,6 +6617,22 @@ function deleteOrder(id){ showConfirm('确定删除这条订单吗？此操作�
         //执行完成
 }); }
 
+// 映射列表分页：每页10条，只有超过一页时显示分页控件。
+const MAP_PAGE_SIZE=10;
+let shopMapPage=1;
+let therapistMapPage=1;
+function mapPaginationHtml(page,total,setter){
+  const pages=Math.max(1,Math.ceil(total/MAP_PAGE_SIZE));
+  if(pages<=1)return '';
+  return `<div class="map-pagination">
+    <button onclick="${setter}(${Math.max(1,page-1)})" ${page<=1?'disabled':''}>上一页</button>
+    <span class="page-info">${page} / ${pages} 页（${total}条）</span>
+    <button onclick="${setter}(${Math.min(pages,page+1)})" ${page>=pages?'disabled':''}>下一页</button>
+  </div>`;
+}
+function setShopMapPage(page){shopMapPage=Math.max(1,Number(page)||1);renderShopMapList();}
+function setTherapistMapPage(page){therapistMapPage=Math.max(1,Number(page)||1);renderTherapistMapList();}
+
 // ---- Shop Map Management ----
 function openShopMap(){
   renderShopMapList();
@@ -6505,16 +6642,22 @@ function openShopMap(){
 function renderShopMapList(){
   const wrap=document.getElementById('shopMapList');
   const entries=Object.entries(shopMap);
+  const pages=Math.max(1,Math.ceil(entries.length/MAP_PAGE_SIZE));
+  shopMapPage=Math.min(Math.max(1,shopMapPage),pages);
   if(entries.length===0){wrap.innerHTML='<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:12px">暂无映射，请在下方添加</div>';return;}
-  wrap.innerHTML=entries.map(([code,name])=>{
+  const start=(shopMapPage-1)*MAP_PAGE_SIZE;
+  wrap.innerHTML=entries.slice(start,start+MAP_PAGE_SIZE).map(([code,name])=>{
     const color=getShopColor(code);
     return `<div class="shop-map-item">
       <span class="code" style="background:${color}15;color:${color}">${escapeHtml(code)}</span>
       <span class="arrow">→</span>
       <span class="name">${escapeHtml(name)}</span>
-      <button class="del" onclick="deleteShopMap('${escapeAttr(code)}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button class="edit" onclick="editShopMap('${escapeAttr(code)}')" title="编辑" aria-label="编辑">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
+      </button>
+      <button class="del" onclick="deleteShopMap('${escapeAttr(code)}')" title="删除" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>`;
-  }).join('');
+  }).join('')+mapPaginationHtml(shopMapPage,entries.length,'setShopMapPage');
 }
 
 function addShopMap(){
@@ -6527,10 +6670,33 @@ function addShopMap(){
   saveData();
   document.getElementById('newShopCode').value='';
   document.getElementById('newShopName').value='';
+  shopMapPage=Math.ceil(Object.keys(shopMap).length/MAP_PAGE_SIZE)||1;
   renderShopMapList();
   renderShopSelects();
   renderFilterShops();
   showToast('映射已添加');
+}
+
+function editShopMap(oldCode){
+  if(!Object.prototype.hasOwnProperty.call(shopMap,oldCode))return;
+  const oldName=String(shopMap[oldCode]||'');
+  const codeInput=prompt('编辑店铺编号：',oldCode);
+  if(codeInput===null)return;
+  const newCode=codeInput.trim();
+  if(!newCode){showToast('店铺编号不能为空','error');return;}
+  if(newCode!==oldCode&&Object.prototype.hasOwnProperty.call(shopMap,newCode)){showToast('该编号已存在','error');return;}
+  const nameInput=prompt('编辑店铺名称：',oldName);
+  if(nameInput===null)return;
+  const newName=nameInput.trim();
+  if(!newName){showToast('店铺名称不能为空','error');return;}
+  if(newCode!==oldCode){
+    const next={};Object.entries(shopMap).forEach(([code,name])=>{next[code===oldCode?newCode:code]=name;});shopMap=next;
+    Object.keys(therapistShopMap||{}).forEach(name=>{if(String(therapistShopMap[name])===String(oldCode))therapistShopMap[name]=newCode;});
+    if(String(selectedShopCode)===String(oldCode))selectedShopCode=newCode;
+  }
+  shopMap[newCode]=newName;saveData();renderShopMapList();renderShopSelects();renderFilterShops();
+  if(document.getElementById('therapistMapModal')?.classList.contains('show'))renderTherapistMapList();
+  showToast('店铺映射已更新');
 }
 
 function deleteShopMap(code){
@@ -6546,30 +6712,82 @@ function deleteShopMap(code){
 
 // ---- Therapist Nickname Map Management ----
 function openTherapistMap(){
+  renderTherapistShopOptions();
   renderTherapistMapList();
   document.getElementById('therapistMapModal').classList.add('show');
+}
+function renderTherapistShopOptions(){
+  const select=document.getElementById('newTherapistShopCode');
+  if(!select) return;
+  const current=select.value;
+  select.innerHTML='<option value="">不设置店铺</option>'+Object.entries(shopMap).map(([code,name])=>`<option value="${escapeAttr(code)}">${escapeHtml(code)} · ${escapeHtml(name)}</option>`).join('');
+  if([...select.options].some(option=>option.value===current)) select.value=current;
 }
 function renderTherapistMapList(){
   const wrap=document.getElementById('therapistMapList');
   const entries=Object.entries(therapistMap);
+  const pages=Math.max(1,Math.ceil(entries.length/MAP_PAGE_SIZE));
+  therapistMapPage=Math.min(Math.max(1,therapistMapPage),pages);
   if(entries.length===0){wrap.innerHTML='<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:12px">暂无映射，请在下方添加</div>';return;}
-  wrap.innerHTML=entries.map(([nickname,name])=>`<div class="shop-map-item">
-    <span class="name">${escapeHtml(nickname)}</span><span class="arrow">→</span><span class="name">${escapeHtml(name)}</span>
-    <button class="del" onclick="deleteTherapistMap('${escapeAttr(nickname)}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-  </div>`).join('');
+  const start=(therapistMapPage-1)*MAP_PAGE_SIZE;
+  wrap.innerHTML=entries.slice(start,start+MAP_PAGE_SIZE).map(([nickname,name])=>{
+    const code=String(therapistShopMap[queueNormalizeName(name)]??therapistShopMap[name]??'');
+    const shopLabel=code?`${code} · ${getShopName(code)}`:'未设置店铺';
+    return `<div class="shop-map-item">
+      <span class="name">${escapeHtml(nickname)}</span><span class="arrow">→</span><span class="name">${escapeHtml(name)}</span>
+      <span style="font-size:12px;color:${code?'var(--primary)':'var(--gray-400)'};white-space:nowrap">${escapeHtml(shopLabel)}</span>
+      <button class="edit" onclick="editTherapistMap('${escapeAttr(nickname)}')" title="编辑" aria-label="编辑">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
+      </button>
+      <button class="del" onclick="deleteTherapistMap('${escapeAttr(nickname)}')" title="删除" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>`;
+  }).join('')+mapPaginationHtml(therapistMapPage,entries.length,'setTherapistMapPage');
 }
+
 function addTherapistMap(){
   const nickname=document.getElementById('newTherapistNickname').value.trim();
   const name=document.getElementById('newTherapistName').value.trim();
+  const shopCode=document.getElementById('newTherapistShopCode')?.value||'';
   if(!nickname){showToast('请输入微信昵称','error');return;}
   if(!name){showToast('请输入标准理疗师名称','error');return;}
   therapistMap[nickname]=name;
+  if(shopCode) therapistShopMap[name]=shopCode;
+  else delete therapistShopMap[name];
   saveData();
   document.getElementById('newTherapistNickname').value='';
   document.getElementById('newTherapistName').value='';
+  document.getElementById('newTherapistShopCode').value='';
+  therapistMapPage=Math.ceil(Object.keys(therapistMap).length/MAP_PAGE_SIZE)||1;
   renderTherapistMapList();
-  showToast('理疗师映射已保存');
+  showToast('理疗师映射及所属店铺已保存');
 }
+function editTherapistMap(oldNickname){
+  if(!Object.prototype.hasOwnProperty.call(therapistMap,oldNickname))return;
+  const oldName=String(therapistMap[oldNickname]||'');
+  const oldCode=String(therapistShopMap[queueNormalizeName(oldName)]??therapistShopMap[oldName]??'');
+  const nicknameInput=prompt('编辑微信昵称/录入名称：',oldNickname);
+  if(nicknameInput===null)return;
+  const nickname=nicknameInput.trim();
+  if(!nickname){showToast('昵称不能为空','error');return;}
+  if(nickname!==oldNickname&&Object.prototype.hasOwnProperty.call(therapistMap,nickname)){showToast('该昵称映射已存在','error');return;}
+  const nameInput=prompt('编辑标准理疗师名称：',oldName);
+  if(nameInput===null)return;
+  const name=nameInput.trim();
+  if(!name){showToast('标准理疗师名称不能为空','error');return;}
+  const shopInput=prompt('编辑所属店铺：输入店铺编号；留空表示不设置。可选编号：'+Object.keys(shopMap).join('、'),oldCode);
+  if(shopInput===null)return;
+  const shopCode=shopInput.trim();
+  if(shopCode&&!Object.prototype.hasOwnProperty.call(shopMap,shopCode)){showToast('该店铺编号不存在，请先在店铺映射表中添加','error');return;}
+  delete therapistMap[oldNickname];therapistMap[nickname]=name;
+  if(queueNormalizeName(oldName)!==queueNormalizeName(name)){
+    const oldStillUsed=Object.values(therapistMap).some(value=>queueNormalizeName(value)===queueNormalizeName(oldName));
+    if(!oldStillUsed)delete therapistShopMap[queueNormalizeName(oldName)];
+  }
+  if(shopCode)therapistShopMap[queueNormalizeName(name)]=shopCode;
+  else delete therapistShopMap[queueNormalizeName(name)];
+  saveData();renderTherapistMapList();showToast('理疗师映射及所属店铺已更新');
+}
+
 function deleteTherapistMap(nickname){
   showConfirm(`确定删除微信昵称「${nickname}」的映射吗？`,()=>{
     delete therapistMap[nickname];saveData();renderTherapistMapList();showToast('理疗师映射已删除');
@@ -6579,7 +6797,7 @@ function deleteTherapistMap(nickname){
 // ---- Export / Import ----
 function exportJSON(){
   if(orders.length===0){showToast('没有数据可导出','error');return;}
-  const data={version:3,exportDate:new Date().toISOString(),shopMap,therapistMap,therapistQueueData,orders};
+  const data={version:4,exportDate:new Date().toISOString(),shopMap,therapistMap,therapistShopMap,therapistQueueData,orders};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
 
   // 文件名：MM-DD-YYYY-a.json
@@ -6738,6 +6956,9 @@ function importJSON(event){
         if(data.therapistMap&&typeof data.therapistMap==='object'){
           therapistMap={...therapistMap,...data.therapistMap};
         }
+        if(data.therapistShopMap&&typeof data.therapistShopMap==='object'){
+          therapistShopMap={...therapistShopMap,...data.therapistShopMap};
+        }
 
         saveData();
         renderAll();
@@ -6747,6 +6968,7 @@ function importJSON(event){
         orders=importedOrders;
         if(data.shopMap&&typeof data.shopMap==='object')shopMap=data.shopMap;
         if(data.therapistMap&&typeof data.therapistMap==='object')therapistMap=data.therapistMap;
+        if(data.therapistShopMap&&typeof data.therapistShopMap==='object')therapistShopMap=data.therapistShopMap;
 
         saveData();
         renderAll();
