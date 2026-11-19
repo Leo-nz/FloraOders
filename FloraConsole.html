@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v251.html | 映射编辑按钮改为铅笔图标，删除统一X并为映射列表增加分页 -->
+<!-- VERSION: FloraConsole_v254.html | 新增set姓名 姓名队列相对位置调整 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v251">
+<meta name="flora-console-version" content="v253">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -760,7 +760,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v253</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -811,10 +811,13 @@ input,select,textarea{font-family:inherit;font-size:16px}
           </div>
           <div class="parse-help-section">
             <div class="parse-help-title">6. set 队列命令</div>
-            <div><code>set ivy 7</code> → 将 Ivy 放在第7位理疗师后面；即使她不在最近72小时名单，也会建立临时占位，并跟随所锚定的队列成员移动。</div>
+            <div><code>set 1 2</code> → 将当前第1位移动到第2位；原第2位升为第1位，原第1位变为第2位。数字对数字命令按目标名次插入。</div>
+            <div><code>set name1 name2</code> → 将当前队列中的 name1 移到 name2 后面；中间理疗师依次前移。例如 <code>set ivy ella</code> 会把 Ivy 紧接着排在 Ella 后面。两人必须在同一店铺的当前正常队列中。</div>
+            <div><code>set ivy 7</code> → 将 Ivy 放在当前第7位理疗师后面；即使她不在最近72小时名单，也会建立临时占位，并跟随所锚定的队列成员移动。</div>
             <div><code>set 1 out</code> / <code>set ivy out</code> → 临时 Out，保持原队列位置并显示60分钟倒计时；再次执行可重新计时，60分钟未续期自动转入 Break。Out期间接到实际订单，立即取消倒计时并按正常规则移动到队尾。</div>
-            <div><code>set ivy break</code> → 立即移入 Break 区域并取消 Out 倒计时；<code>set ivy in</code> → 从 Break 区域召回；<code>set 1 2</code> → 将当前第1位理疗师移动到第2位之后。</div>
-            <div>可在命令前指定店铺编号，例如 <code>set 4 ivy 7</code>。临时占位在接到下一笔真实订单后自动转为正常轮转。Break 人员仍沿用原有72小时名单清理规则；临时 Out 的倒计时和状态保存在本机，刷新页面不会重置。</div>
+            <div><code>set ivy break</code> → 立即移入 Break 区域并取消 Out 倒计时；<code>set ivy in</code> → 从 Break 区域召回。</div>
+            <div><code>release</code> → 一次清除所有店铺的人工数字位置设置及历史订单强制轮转标记，所有正常队列立即恢复原规则时间排序。Out/Break状态和Out倒计时保留，不会被召回或重置。</div>
+            <div>可在命令前指定店铺编号，例如 <code>set 4 ivy 7</code> 或 <code>set 4 ivy ella</code>。临时占位在接到下一笔真实订单后自动转为正常轮转。Break 人员仍沿用原有72小时名单清理规则；临时 Out 的倒计时和状态保存在本机，刷新页面不会重置。</div>
             <div><strong>执行流程：</strong>输入命令 → Ctrl+T 解析 → 检查下方队列调整预览 → 勾选该项 → Ctrl+Enter 执行。解析阶段不会改变队列。</div>
           </div>
         </div>
@@ -863,7 +866,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
         <div class="help-page hidden" data-help-page="4">
           <div class="parse-help-section">
             <div class="parse-help-title">12. 录入区快捷操作与键盘快捷键</div>
-            <div>录入框下方快捷命令依次包括：工作计数、完整订单、确认订单、过期清理、蜂蜜统计、近期预约、明天预约。工作计数统计今天09:30至当前时间的订单；查询结果显示在录入区下方，列表更新或翻页时保持当前浏览位置，不会主动跳回输入框；完整订单只把 <code>7 names,1,250,60,备注,5678v,1330</code> 填入 textarea，供修改后解析；确认订单只显示真实待确认清单，勾选后按 Ctrl+Enter 执行；过期清理显示预约清单；其它项目按各自查询功能运行。</div>
+            <div>录入框下方快捷命令依次包括：工作计数、完整订单、确认订单、过期清理、蜂蜜统计、今天预约、近期预约。工作计数统计今天09:30至当前时间的订单；查询结果显示在录入区下方，列表更新或翻页时保持当前浏览位置，不会主动跳回输入框；完整订单只把 <code>7 names,1,250,60,备注,5678v,1330</code> 填入 textarea，供修改后解析；确认订单只显示真实待确认清单，勾选后按 Ctrl+Enter 执行；过期清理显示预约清单；今天预约查询当天全部预约，近期预约查询当前时刻之后尚未开始的预约。</div>
             <div><code>Ctrl+T</code> 解析/预览；<code>Ctrl+Enter</code> 复制当前命令并执行已解析、已勾选的项目；<code>Ctrl+C</code> 清空输入框。</div>
             <div><code>Ctrl+A</code> 录入；<code>Ctrl+W</code> 趋势；<code>Ctrl+L</code> 明细；<code>Ctrl+X</code> 理疗室；<code>Ctrl+D</code> 今日概览；<code>Ctrl+Q</code> 理疗师统计；<code>Ctrl+E</code> Excel折线图；<code>Ctrl+H</code> 或 <code>Ctrl+Alt+H</code> 打开本说明书。</div>
             <div><code>Ctrl+1</code> 折叠/展开今天要处理；<code>Ctrl+2</code> 折叠/展开预约队列；<code>Ctrl+3</code> 折叠/展开41号店理疗师队列。</div>
@@ -1041,7 +1044,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
         <!-- Parse Mode -->
         <div id="parseMode">
           <div class="form-group">
-            <textarea class="form-textarea" id="parseTextarea" placeholder="可一次输入或粘贴一行、多行订单。&#10;&#10;【普通订单】&#10;4 daisy,3,160,60,4,1107&#10;7 zona,2,200,60,3,1224&#10;&#10;【完整格式】&#10;7 lenabook,1,250,60,过来选,3457v,1200&#10;&#10;【简写】&#10;4 daisy,1,1220&#10;4 daisy,1,20&#10;&#10;【预约 book】&#10;4 adelabook,1,1955&#10;4 daisybook,2,7792,20&#10;&#10;【查询】&#10;check book&#10;check 3292&#10;check truda&#10;check 7&#10;check 10-1&#10;check 10-1 truda&#10;check 10-5 10-20 qian&#10;check #&#10;check # 10-17&#10;check # daisy&#10;check # 10-17 daisy&#10;&#10;【删除】&#10;1 tbook,1,x&#10;4 daisybook,1,160,60,,1100,x&#10;delete 9-1&#10;delete 9-1 10-1&#10;&#10;【手动调整理疗师队列】&#10;set 1 2&#10;set kitty 5&#10;set kitty out&#10;set kitty in&#10;set 4 kitty 8"></textarea>
+            <textarea class="form-textarea" id="parseTextarea" placeholder="可一次输入或粘贴一行、多行订单。&#10;&#10;【普通订单】&#10;4 daisy,3,160,60,4,1107&#10;7 zona,2,200,60,3,1224&#10;&#10;【完整格式】&#10;7 lenabook,1,250,60,过来选,3457v,1200&#10;&#10;【简写】&#10;4 daisy,1,1220&#10;4 daisy,1,20&#10;&#10;【预约 book】&#10;4 adelabook,1,1955&#10;4 daisybook,2,7792,20&#10;&#10;【查询】&#10;check book&#10;check 3292&#10;check truda&#10;check 7&#10;check 10-1&#10;check 10-1 truda&#10;check 10-5 10-20 qian&#10;check #&#10;check # 10-17&#10;check # daisy&#10;check # 10-17 daisy&#10;&#10;【删除】&#10;1 tbook,1,x&#10;4 daisybook,1,160,60,,1100,x&#10;delete 9-1&#10;delete 9-1 10-1&#10;&#10;【手动调整理疗师队列】&#10;set 1 2&#10;release&#10;set kitty 5&#10;set kitty out&#10;set kitty in&#10;set 4 kitty 8"></textarea>
 
             <div class="form-hint parse-input-note">一行可以输入一条或多条订单；也可以输入查询、删除指令。输入完成后按 <code>Ctrl+T</code> 解析。详细格式与使用说明请查看 <b>说明[H]</b>。</div>
             <div class="quick-command-row" aria-label="常用快捷命令">
@@ -1051,8 +1054,8 @@ input,select,textarea{font-family:inherit;font-size:16px}
               <button type="button" onclick="runQuickCommand('confirmall')" title="列出所有真实待确认订单；核查勾选后按 Ctrl+Enter 确认">确认订单</button>
               <button type="button" onclick="runQuickCommand('clearbook')" title="预览已结束的预约，Ctrl+Enter确认清除">过期清理</button>
               <button type="button" onclick="runQuickCommand('honey')" title="统计本月1日至今天的蜂蜜订单">蜂蜜统计</button>
+              <button type="button" onclick="runQuickCommand('todaybook')" title="查询今天的预约">今天预约</button>
               <button type="button" onclick="runQuickCommand('nextbook')" title="查询当前时刻之后尚未开始的预约">近期预约</button>
-              <button type="button" onclick="runQuickCommand('tomorrow')" title="查询明天的预约">明天预约</button>
             </div>
 
           </div>
@@ -1718,7 +1721,8 @@ function getTherapistQueueSnapshot(now=new Date()){
       if(from<0)return;
       const item=activePeople.splice(from,1)[0];
       const anchor=move.afterKey?activePeople.findIndex(entry=>entry.key===move.afterKey):-1;
-      if(anchor>=0)activePeople.splice(anchor+1,0,item);
+      if(move.atStart)activePeople.unshift(item);
+      else if(anchor>=0)activePeople.splice(anchor+1,0,item);
       else activePeople.push(item);
     });
     list.splice(0,list.length,...activePeople,...outPeople);
@@ -2025,7 +2029,7 @@ wrap.innerHTML = items.map(o => {
 
       <div class="today-badge" style="background:${isOverdue?'':color}"></div>
 
-      <div class="today-content" onclick="Send2ParseTextArea('${o.shopCode} ${o.autoCompleted&&o.selfBooked&&!o.seqNo?cleanSalesName(o.sales)+','+o.time:o.sales+','+o.seqNo+','+(o.amountUnknown?'':o.amount.toFixed(0))+','+(o.duration||'')+','+orderMarkerField(o)+','+o.time}')">
+      <div class="today-content" onclick="insertTodayOrder('${o.id}',event)" title="左键回填订单；Shift+左键替换输入框并复制预约描述">
         <div class="today-title">
           ${escapeHtml(o.shopName)} · ${escapeHtml(o.sales)}${isBookOrder?'<span class="today-book-label">预约订单</span>':''}
           <span style="color:var(--gray-400);font-size:12px">
@@ -2059,6 +2063,18 @@ wrap.innerHTML = items.map(o => {
 
 }
 
+// v252：今日待处理列表 Shift+Click 与轨道色块共用同一客户友好描述。
+function insertTodayOrder(id,event){
+  const o=orders.find(x=>String(x.id)===String(id));
+  if(!o)return;
+  if(event&&event.shiftKey){
+    replaceParseTextAreaAndCopy(shiftClickDescription(o));
+    return;
+  }
+  // 普通点击保留今日待处理列表原有的简洁订单回填格式。
+  const text=`${o.shopCode} ${o.autoCompleted&&o.selfBooked&&!o.seqNo?cleanSalesName(o.sales)+','+o.time:o.sales+','+o.seqNo+','+(o.amountUnknown?'':Number(o.amount||0).toFixed(0))+','+(o.duration||'')+','+orderMarkerField(o)+','+o.time}`;
+  Send2ParseTextArea(text);
+}
 function quickConfirm(id){ const o=orders.find(x=>x.id===id); if(o){o.status='confirmed';saveData();renderAll();showToast('已确认');} }
 function goEdit(id){ switchTab('list'); setTimeout(()=>{ const row=document.querySelector(`[data-order-id="${id}"]`); if(row){row.style.background='var(--warn-light)';setTimeout(()=>row.style.background='',2000);} },100); }
 
@@ -3614,7 +3630,34 @@ function convertWechatLogToOrders(inputText){
 // v239：set/confirm 均先生成可勾选预览；只有 Ctrl+Enter 才修改数据。
 function handleSetQueueCommand(text){
   const raw=String(text||'').trim();
+  // release：全店清除人工数字位置覆盖；Out/Break 属于离岗状态，不在此命令中清除。
+  if(/^release$/i.test(raw)){
+    const manualCount=Object.values(therapistQueueData?.shops||{}).reduce((sum,state)=>sum+(Array.isArray(state?.manualMoves)?state.manualMoves.length:0),0);
+    const forcedCount=orders.filter(order=>order&&order.queueForceTurn).length;
+    const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
+    parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:'release',shopCode:'*',targetKey:'',targetName:'全部店铺',targetPosition:null,setAction:'release',extra:`清除全部店铺的人工强制位置：${manualCount}项；清除历史订单中的强制轮转标记：${forcedCount}项。Out/Break状态及Out倒计时保留。`}];
+    parsedDate='';renderParseResults();return true;
+  }
   if(!/^set(?:\s|$)/i.test(raw))return false;
+  // v254：姓名对姓名的相对排序。将 name1 移到 name2 紧后方，效果与数字位置调整一致。
+  const namedParts=raw.split(/\s+/).slice(1);
+  let namedShop='4';
+  if(namedParts.length===3 && /^\d+$/.test(namedParts[0])) namedShop=namedParts.shift();
+  if(namedParts.length===2){
+    const [movingToken,anchorToken]=namedParts;
+    const active=getTherapistQueueShop(namedShop).filter(item=>!item.isOut);
+    const resolveActive=token=>{
+      const norm=queueNormalizeName(token);
+      return active.find(item=>item.key===norm||queueNormalizeName(item.name)===norm)||null;
+    };
+    const moving=resolveActive(movingToken),anchor=resolveActive(anchorToken);
+    if(moving && anchor){
+      if(moving.key===anchor.key){showToast('两位理疗师不能是同一个人。','error');return true;}
+      const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
+      parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${namedShop==='4'?'':namedShop+' '}${moving.name} ${anchor.name}`,shopCode:String(namedShop),targetKey:moving.key,targetName:moving.name,targetPosition:null,moveAfterNamed:true,anchorKey:anchor.key,anchorName:anchor.name,setAction:'namedMove',extra:`将 ${moving.name} 移到 ${anchor.name} 后面；两人之间的理疗师依次前移。`}];
+      parsedDate='';renderParseResults();return true;
+    }
+  }
   const match=raw.match(/^set\s+(.+?)\s+(in|out|break|\d+)\s*$/i);
   if(!match){showToast('用法：set 1 2、set ivy 7、set 1 out、set ivy out、set ivy break、set ivy in。','error');return true;}
   const left=match[1].trim().split(/\s+/);
@@ -3642,9 +3685,10 @@ function handleSetQueueCommand(text){
   if(action==='out')preview=`将 ${target.name} 标记为临时 Out：保持当前队列位置并显示60分钟倒计时；再次执行可重新计时，60分钟未续期自动转入 Break；期间接到实际订单则立即取消 Out 并按正常规则移至队尾。`;
   else if(action==='break')preview=`将 ${target.name} 立即移入 Break 区域，并取消正在进行的 Out 倒计时。`;
   else if(action==='in')preview=`将 ${target.name} 从 Break 区域召回，恢复正常队列规则。`;
-  else preview=`将 ${target.name} 加入/调整到 ${getShopName(shopCode)} 队列，排在第 ${Number(action)} 位理疗师之后；接到下一笔真实订单后解除人工位置。`;
+  else if(/^\d+$/.test(targetToken))preview=`将当前第 ${Number(targetToken)} 位理疗师移动到第 ${Number(action)} 位；例如 set 1 2 后，原第2位升为第1位，原第1位变为第2位。`;
+  else preview=`将 ${target.name} 调整到 ${getShopName(shopCode)} 队列中第 ${Number(action)} 位理疗师之后；接到下一笔真实订单后解除人工位置。`;
   const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
-  parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${shopCode==='4'?'':shopCode+' '}${target.name} ${action}`,shopCode:String(shopCode),targetKey:target.key,targetName:target.name,targetPosition:/^\d+$/.test(action)?Number(action):null,setAction:action,extra:preview}];
+  parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${shopCode==='4'?'':shopCode+' '}${target.name} ${action}`,shopCode:String(shopCode),targetKey:target.key,targetName:target.name,targetPosition:/^\d+$/.test(action)?Number(action):null,moveToPosition:/^\d+$/.test(targetToken)&&/^\d+$/.test(action),setAction:action,extra:preview}];
   parsedDate='';renderParseResults();
   return true;
 }
@@ -3687,8 +3731,32 @@ function handleConfirmOrdersCommand(text){
 
 function applySetQueueCommand(r){
   const shopCode=String(r.shopCode||'4'),key=String(r.targetKey||''),name=String(r.targetName||key),action=String(r.setAction||'');
+  if(action==='release'){
+    let removedMoves=0,clearedForcedTurns=0;
+    Object.values(therapistQueueData?.shops||{}).forEach(state=>{
+      if(state&&Array.isArray(state.manualMoves)){removedMoves+=state.manualMoves.length;state.manualMoves=[];}
+    });
+    orders.forEach(order=>{if(order&&order.queueForceTurn){delete order.queueForceTurn;clearedForcedTurns++;}});
+    saveData();renderTherapistTurnQueue();
+    return `已恢复全部店铺原始时间排序：清除${removedMoves}项人工位置设置、${clearedForcedTurns}项强制轮转标记；Out/Break状态及Out倒计时保留。`;
+  }
   const outList=getTherapistQueueOutList(shopCode,true);
   const outIndex=outList.findIndex(item=>item&&item.key===key);
+  if(action==='namedMove' && r.moveAfterNamed){
+    const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut);
+    const fromIndex=currentActive.findIndex(item=>item.key===key);
+    const anchorIndex=currentActive.findIndex(item=>item.key===String(r.anchorKey||''));
+    if(fromIndex<0||anchorIndex<0)throw new Error('找不到需要调整的理疗师，请刷新队列后重新执行。');
+    const moving=currentActive.splice(fromIndex,1)[0];
+    const newAnchorIndex=currentActive.findIndex(item=>item.key===String(r.anchorKey||''));
+    if(newAnchorIndex<0)throw new Error('找不到目标理疗师，请刷新队列后重新执行。');
+    currentActive.splice(newAnchorIndex+1,0,moving);
+    const moves=getTherapistQueueManualMoves(shopCode,true);
+    const existingIndex=moves.findIndex(move=>move&&move.key===key);
+    if(existingIndex>=0)moves.splice(existingIndex,1);
+    moves.push({key,name,afterKey:String(r.anchorKey),movedAt:new Date().toISOString()});
+    return `${name} 已移动到 ${r.anchorName} 后面。`;
+  }
   if(action==='out'){
     const now=new Date(),record={key,name,mode:'out',outAt:now.toISOString(),expiresAt:new Date(now.getTime()+60*60*1000).toISOString()};
     if(outIndex>=0)outList[outIndex]=record;else outList.push(record);
@@ -3710,14 +3778,29 @@ function applySetQueueCommand(r){
   const afterPosition=Number(r.targetPosition);
   if(!Number.isInteger(afterPosition)||afterPosition<1)throw new Error('目标位置必须是大于0的整数。');
   if(outIndex>=0)outList.splice(outIndex,1);
-  let currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut).filter(item=>item.key!==key);
-  const anchor=afterPosition<=currentActive.length?currentActive[afterPosition-1]:null;
   const moves=getTherapistQueueManualMoves(shopCode,true);
   const existingIndex=moves.findIndex(move=>move&&move.key===key);
-  const moveRecord={key,name,afterKey:anchor?anchor.key:'',movedAt:new Date().toISOString()};
+  let moveRecord, resultMessage;
+  if(r.moveToPosition){
+    // 两个数字形式 set 1 2：将原第1位插入第2位，原第2位自然升至第1位。
+    const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut);
+    const fromIndex=currentActive.findIndex(item=>item.key===key);
+    if(fromIndex<0)throw new Error(`当前队列找不到第${r.raw?.match(/^set\s+(\d+)/i)?.[1]||'?'}位理疗师。`);
+    const moving=currentActive.splice(fromIndex,1)[0];
+    const insertIndex=Math.max(0,Math.min(afterPosition-1,currentActive.length));
+    currentActive.splice(insertIndex,0,moving);
+    const previous=currentActive[insertIndex-1]||null;
+    moveRecord={key,name,afterKey:previous?previous.key:'',atStart:!previous,movedAt:new Date().toISOString()};
+    resultMessage=`${name} 已移动到第 ${insertIndex+1} 位。`;
+  }else{
+    const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut).filter(item=>item.key!==key);
+    const anchor=afterPosition<=currentActive.length?currentActive[afterPosition-1]:null;
+    moveRecord={key,name,afterKey:anchor?anchor.key:'',movedAt:new Date().toISOString()};
+    resultMessage=anchor?`${name} 已加入队列，排在 ${anchor.name} 后面。`:`${name} 已加入队列末尾（当前队列不足 ${afterPosition} 位）。`;
+  }
   if(existingIndex>=0)moves.splice(existingIndex,1);
   moves.push(moveRecord);
-  return anchor?`${name} 已加入队列，排在 ${anchor.name} 后面。`:`${name} 已加入队列末尾（当前队列不足 ${afterPosition} 位）。`;
+  return resultMessage;
 }
 
 // v206：clear book 先生成待确认列表；只有 Ctrl+Enter 才真正删除。
@@ -3776,8 +3859,8 @@ function runQuickCommand(kind){
   else if(kind==='confirmall') command='confirm all';
   else if(kind==='clearbook') command='clear book';
   else if(kind==='honey') command=`chart h ${now.getMonth()+1}-1 ${monthDay(now)}`;
+  else if(kind==='todaybook') command='check book';
   else if(kind==='nextbook') command='check nextbook';
-  else if(kind==='tomorrow'){const tomorrow=new Date(now);tomorrow.setDate(tomorrow.getDate()+1);command=`check ${monthDay(tomorrow)} book`;}
   if(!command)return;
   const input=document.getElementById('parseTextarea');
   if(!input)return;
@@ -5234,7 +5317,8 @@ function shiftClickDescription(o){
     const mappedNickname=Object.entries(therapistMap||{}).find(([nickname,standardName])=>
       String(standardName||'').trim().toLowerCase()===customerKey
     )?.[0];
-    const displayTherapistName=mappedNickname?String(mappedNickname).trim():customerName;
+    const displayTherapistNameRaw=mappedNickname?String(mappedNickname).trim():customerName;
+    const displayTherapistName=displayTherapistNameRaw.replace(/^([a-z])/,ch=>ch.toUpperCase());
     const guestTail=getGuestTail(o);
     const orderDate=String(o.date||o.checkQueryDate||parsedDate||todayStr()).slice(0,10);
     const isToday=orderDate===todayStr();
@@ -5250,9 +5334,20 @@ function shiftClickDescription(o){
       }
       const amountText=o.amountUnknown?'价格未知':`$${Number(o.amount||0).toFixed(0)}`;
       const durationText=o.duration?`${o.duration}分钟`:'时长未知';
-      const dateText=isToday?'':`，${orderDate}`;
-      const noteText=String(o.note||'').trim();
-      return `${displayTherapistName}广告预约${guestTail?`，尾号${guestTail}`:''}${noteText?`，备注：${noteText}`:''}，${amountText}，${durationText}${dateText}，${hhmm}到`;
+      const dateText=isToday?'':orderDate;
+      let noteText=String(o.note||'').trim();
+      // v252：预约的(v)标记在客户友好描述中明确显示为“备注:vip”；保留其它备注。
+      if(o.vip){
+        if(!noteText || /^v(ip)?$/i.test(noteText)) noteText='vip';
+        else if(!/(^|[,，\s])vip($|[,，\s])/i.test(noteText)) noteText+='，vip';
+      }
+      const parts=[`${displayTherapistName}广告预约`];
+      if(guestTail) parts.push(`尾号${guestTail}`);
+      parts.push(amountText,durationText);
+      if(noteText) parts.push(`备注:${noteText}`);
+      if(dateText) parts.push(dateText);
+      parts.push(`${hhmm}到`);
+      return parts.join('，');
     }
     const amountText=o.amountUnknown?'未知':Number(o.amount||0).toFixed(0);
     const durationText=o.duration?String(o.duration):'未知';
