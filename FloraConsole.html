@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v254.html | 新增set姓名 姓名队列相对位置调整 -->
+<!-- VERSION: FloraConsole_v258.html | set 队列改用虚拟秒级排序时间，支持同分钟精确插队 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v253">
+<meta name="flora-console-version" content="v258">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -412,6 +412,8 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .help-page{width:100%;}
 .help-tab .help-page{font-size:13px;line-height:1.75;}
 .help-tab .help-page .parse-help-section{font-size:13px;line-height:1.75;}
+/* v255：说明书段首顶格，自动换行后的续行缩进两格。 */
+.help-tab .help-page .parse-help-section>div:not(.parse-help-title),.help-tab .parse-help-intro{padding-left:2em;text-indent:-2em;}
 .help-page.hidden{display:none!important;}
 
 .parse-input-note{font-size:12px;color:var(--gray-500);line-height:1.7;}
@@ -760,7 +762,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v253</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v258</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -811,12 +813,13 @@ input,select,textarea{font-family:inherit;font-size:16px}
           </div>
           <div class="parse-help-section">
             <div class="parse-help-title">6. set 队列命令</div>
-            <div><code>set 1 2</code> → 将当前第1位移动到第2位；原第2位升为第1位，原第1位变为第2位。数字对数字命令按目标名次插入。</div>
-            <div><code>set name1 name2</code> → 将当前队列中的 name1 移到 name2 后面；中间理疗师依次前移。例如 <code>set ivy ella</code> 会把 Ivy 紧接着排在 Ella 后面。两人必须在同一店铺的当前正常队列中。</div>
-            <div><code>set ivy 7</code> → 将 Ivy 放在当前第7位理疗师后面；即使她不在最近72小时名单，也会建立临时占位，并跟随所锚定的队列成员移动。</div>
+            <div><code>set 1 2</code> → 将当前第1位移动到当前第2位后面；原第2位升为第1位。<code>set 7 1</code> → 将当前第7位移动到当前第1位后面。<code>set 7 0</code> → 将当前第7位直接移动到队列第1位（0代表队首）。</div>
+            <div><code>set name1 name2</code> → 将当前队列中的 name1 移到 name2 后面；也支持数字来源，例如 <code>set 7 ni</code> 将当前第7位移到 ni 后面。中间理疗师依次前移；两人必须在同一店铺的当前正常队列中。</div>
+            <div><code>set ivy 7</code> → 将 Ivy 放在当前第7位理疗师后面；<code>set adela 0</code> → 将 Adela 移到队首。即使她不在最近72小时名单，也会建立临时占位，并使用虚拟秒级排序时间固定在指定位置，不跟随其他理疗师移动。</div>
             <div><code>set 1 out</code> / <code>set ivy out</code> → 临时 Out，保持原队列位置并显示60分钟倒计时；再次执行可重新计时，60分钟未续期自动转入 Break。Out期间接到实际订单，立即取消倒计时并按正常规则移动到队尾。</div>
+            <div>人工移动通过独立的虚拟队列时间排序：真实订单时间仍精确到分钟且不会修改；只有人工 set 时才给队列排序时间增加秒数。即使多人真实订单时间相同，也能用秒级时间准确插入；虚拟秒不进入订单、预约显示或统计。</div>
             <div><code>set ivy break</code> → 立即移入 Break 区域并取消 Out 倒计时；<code>set ivy in</code> → 从 Break 区域召回。</div>
-            <div><code>release</code> → 一次清除所有店铺的人工数字位置设置及历史订单强制轮转标记，所有正常队列立即恢复原规则时间排序。Out/Break状态和Out倒计时保留，不会被召回或重置。</div>
+            <div><code>release</code> → 一次清除所有店铺的人工虚拟排序时间设置及历史订单强制轮转标记，所有正常队列立即恢复原规则时间排序。Out/Break状态和Out倒计时保留，不会被召回或重置。</div>
             <div>可在命令前指定店铺编号，例如 <code>set 4 ivy 7</code> 或 <code>set 4 ivy ella</code>。临时占位在接到下一笔真实订单后自动转为正常轮转。Break 人员仍沿用原有72小时名单清理规则；临时 Out 的倒计时和状态保存在本机，刷新页面不会重置。</div>
             <div><strong>执行流程：</strong>输入命令 → Ctrl+T 解析 → 检查下方队列调整预览 → 勾选该项 → Ctrl+Enter 执行。解析阶段不会改变队列。</div>
           </div>
@@ -837,7 +840,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
             <div class="parse-help-title">8. chart 统计图命令</div>
             <div><strong>理疗师最近N天折线图：</strong><code>chart 7 truda</code>；多位理疗师用逗号分隔，例如 <code>chart 7 truda,ella o</code>。天数范围1～365，末尾 <code>o</code> 按订单数，<code>m</code> 按金额。</div>
             <div><strong>日期范围排名柱图：</strong><code>chart 10-1 10-31</code>；加店铺编号只统计该店，例如 <code>chart 10-1 10-31 4 o</code>。</div>
-            <div><strong>标记统计：</strong><code>chart h 11-1 11-10</code>；也可组合标记，例如 <code>chart yv 11-2 11-12 7</code>。末尾可指定店铺编号。</div>
+            <div><strong>标记统计：</strong><code>chart h 11-1 11-10</code>；蜂蜜图按 h 的实际瓶数累计（如 <code>hhh</code> 计3瓶），也可组合标记，例如 <code>chart yv 11-2 11-12 7</code>。末尾可指定店铺编号。</div>
             <div>图表排除 book 预约和已取消订单；价格未知订单计入订单数，不计入金额。日期范围包含首尾日期；未写年份时按当前年份解释，跨年范围自动识别。</div>
           </div>
         </div>
@@ -1578,6 +1581,26 @@ function getTherapistQueueManualMoves(shopCode,create=false){
   }
   return shopState.manualMoves;
 }
+// v258：人工 set 不再保存数组位置，而是给队列成员写入独立的虚拟排序时间。
+// 真实订单时间仍保持分钟精度；虚拟秒只参与理疗师队列排序。
+function saveTherapistQueueVirtualOrder(shopCode, orderedPeople){
+  const moves=getTherapistQueueManualMoves(shopCode,true);
+  const active=(orderedPeople||[]).filter(item=>item&&!item.isOut);
+  const realTimes=active.map(item=>item.lastTurnAt instanceof Date?item.lastTurnAt.getTime():NaN).filter(Number.isFinite);
+  const base=realTimes.length?Math.floor(Math.min(...realTimes)/60000)*60000:Math.floor(Date.now()/60000)*60000;
+  const keep=new Map(moves.filter(move=>move&&move.key).map(move=>[move.key,move]));
+  active.forEach((item,index)=>{
+    const record=keep.get(item.key)||{key:item.key,name:item.name||item.key};
+    record.name=item.name||record.name||item.key;
+    record.virtualAt=base+index*1000;
+    record.movedAt=new Date().toISOString();
+    delete record.position;delete record.afterKey;delete record.atStart;
+    record.queueRank=index;
+    keep.set(item.key,record);
+  });
+  moves.splice(0,moves.length,...keep.values());
+  return base;
+}
 function getTherapistQueueOutList(shopCode,create=false){
   if(!therapistQueueData||typeof therapistQueueData!=='object')therapistQueueData={shops:{}};
   if(!therapistQueueData.shops||typeof therapistQueueData.shops!=='object')therapistQueueData.shops={};
@@ -1611,7 +1634,7 @@ function completeManualQueueMoveForOrder(order){
   if(index>=0){
     moves.splice(index,1);
     changed=true;
-    // 人工数字位置在下一笔正式订单后解除；该单即使金额不超过50也刷新队列时间。
+    // 人工虚拟排序时间在下一笔正式订单后解除；该单即使金额不超过50也刷新队列时间。
     order.queueForceTurn=true;
   }
   return changed;
@@ -1708,22 +1731,40 @@ function getTherapistQueueSnapshot(now=new Date()){
       if(!a.lastTurnAt)return -1;if(!b.lastTurnAt)return 1;
       return a.lastTurnAt-b.lastTurnAt||a.name.localeCompare(b.name,'zh-CN');
     });
-    // v238：set 姓名 数字可建立临时占位理疗师，即使最近72小时没有真实订单也进入队列。
-    // 占位项以 afterKey 锚定在某位队列成员之后，因此锚点随正常队列移动时，占位项也跟随移动。
+    // v258：队列只使用一套排序机制。旧版位置/锚点数据仅在首次升级时转换成虚拟时间，
+    // 转换完成后 position/afterKey/atStart 永久退出排序流程。
     const manualMoves=getTherapistQueueManualMoves(shopCode,false);
     manualMoves.forEach(move=>{
       if(!move||!move.key||activePeople.some(item=>item.key===move.key))return;
       activePeople.push({key:move.key,name:move.name||move.key,shopCode:String(shopCode),lastTurnAt:null,lastShopAt:null,isManualPlaceholder:true});
     });
-    // 临时数字位置只作用于正常队列，离开人员始终独立显示在分隔线右侧。
-    manualMoves.forEach(move=>{
-      const from=activePeople.findIndex(item=>item.key===move.key);
-      if(from<0)return;
-      const item=activePeople.splice(from,1)[0];
-      const anchor=move.afterKey?activePeople.findIndex(entry=>entry.key===move.afterKey):-1;
-      if(move.atStart)activePeople.unshift(item);
-      else if(anchor>=0)activePeople.splice(anchor+1,0,item);
-      else activePeople.push(item);
+    const legacyMoves=manualMoves.filter(move=>move&&move.key&&!Number.isFinite(Number(move.virtualAt))&&(Number.isInteger(move.position)||move.afterKey||move.atStart));
+    if(legacyMoves.length){
+      legacyMoves.forEach(move=>{
+        const from=activePeople.findIndex(item=>item.key===move.key);
+        if(from<0)return;
+        const item=activePeople.splice(from,1)[0];
+        let target=Number.isInteger(move.position)?move.position:(move.atStart?0:-1);
+        if(!Number.isInteger(move.position)&&move.afterKey){const anchor=activePeople.findIndex(entry=>entry.key===move.afterKey);target=anchor>=0?anchor+1:activePeople.length;}
+        if(target<0)target=activePeople.length;
+        activePeople.splice(Math.max(0,Math.min(target,activePeople.length)),0,item);
+        delete move.position;delete move.afterKey;delete move.atStart;
+      });
+      const validTimes=activePeople.map(item=>item.lastTurnAt instanceof Date?item.lastTurnAt.getTime():NaN).filter(Number.isFinite);
+      const base=validTimes.length?Math.floor(Math.min(...validTimes)/60000)*60000:Math.floor(Date.now()/60000)*60000;
+      activePeople.forEach((item,index)=>{
+        let record=manualMoves.find(move=>move&&move.key===item.key);
+        if(!record){record={key:item.key,name:item.name||item.key};manualMoves.push(record);}
+        record.virtualAt=base+index*1000;
+      });
+      saveData();
+    }
+    const virtualByKey=new Map(manualMoves.filter(move=>move&&move.key&&Number.isFinite(Number(move.virtualAt))).map(move=>[move.key,Number(move.virtualAt)]));
+    activePeople.forEach(item=>{const stamp=virtualByKey.get(item.key);if(Number.isFinite(stamp))item.queueSortAt=stamp;});
+    if(virtualByKey.size)activePeople.sort((a,b)=>{
+      const ta=Number.isFinite(a.queueSortAt)?a.queueSortAt:(a.lastTurnAt instanceof Date?a.lastTurnAt.getTime():-Infinity);
+      const tb=Number.isFinite(b.queueSortAt)?b.queueSortAt:(b.lastTurnAt instanceof Date?b.lastTurnAt.getTime():-Infinity);
+      return ta-tb||a.name.localeCompare(b.name,'zh-CN');
     });
     list.splice(0,list.length,...activePeople,...outPeople);
   });
@@ -2758,6 +2799,7 @@ function renderTherapistRangeBarChart(startDate,endDate,metric,shopCode=''){
     if(!key)return;
     if(!map.has(key))map.set(key,{sales,count:0,amount:0,shops:new Set(),unknownAmount:0});
     const item=map.get(key);item.count++;
+    item.honeyBottles=(item.honeyBottles||0)+(markerList.includes('h')?getHoneyCount(o):0);
     if(o.amountUnknown||o.amount===null||o.amount===undefined||!Number.isFinite(Number(o.amount)))item.unknownAmount++;
     else item.amount+=Number(o.amount)||0;
     item.shops.add(o.shopName||getShopName(o.shopCode)||String(o.shopCode||''));
@@ -2768,7 +2810,7 @@ function renderTherapistRangeBarChart(startDate,endDate,metric,shopCode=''){
   const totalCount=rows.reduce((n,x)=>n+x.count,0),totalAmount=rows.reduce((n,x)=>n+x.amount,0);
   const wrap=document.getElementById('checkResult');if(!wrap)return;
   wrap.classList.remove('hidden');
-  const metricLabel=metric==='amount'?'金额':'订单数';
+  const metricLabel=metric==='amount'?'金额':(markerList.includes('h')?'蜂蜜瓶数':'订单数');
   const shopLabel=shopCode?` · ${escapeHtml(getShopName(shopCode)||shopCode+'号店')}`:' · 全部店铺';
   wrap.innerHTML=`<div class="card" style="margin-top:12px"><div class="card-header"><div class="card-title">理疗师排名${shopLabel}</div><div style="font-size:12px;color:var(--gray-500)">${startDate} ～ ${endDate}</div></div><div class="card-body"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px" role="group" aria-label="图表统计指标"><button type="button" class="btn ${metric==='amount'?'btn-primary':'btn-outline'}" onclick="setTherapistRangeMetric('amount')" aria-pressed="${metric==='amount'}">金额排名</button><button type="button" class="btn ${metric==='count'?'btn-primary':'btn-outline'}" onclick="setTherapistRangeMetric('count')" aria-pressed="${metric==='count'}">订单数排名</button><span style="font-size:12px;color:var(--gray-500)">均按从高到低排列</span></div><div class="chart-command-summary"><div class="stat-card"><span class="stat-label">有效订单</span><span class="stat-value">${totalCount}</span><span class="stat-sub">排除预约及已取消订单</span></div><div class="stat-card"><span class="stat-label">有效金额</span><span class="stat-value income">¥${totalAmount.toFixed(2)}</span><span class="stat-sub">价格未知订单不计入金额</span></div><div class="stat-card"><span class="stat-label">理疗师人数</span><span class="stat-value">${rows.length}</span><span class="stat-sub">按${metricLabel}从高到低排列</span></div></div><div class="chart-therapist-bars" id="therapistRangeBarWrap"></div></div></div>`;
   const chartWrap=document.getElementById('therapistRangeBarWrap');
@@ -2825,12 +2867,13 @@ function renderMarkerRangeBarChart(startDate,endDate,shopCode,markers,startToken
     if(!map.has(key)) map.set(key,{sales,count:0,amount:0,unknownAmount:0,shops:new Set()});
     const item=map.get(key);
     item.count++;
+    item.honeyBottles=(item.honeyBottles||0)+(markerList.includes('h')?getHoneyCount(o):0);
     if(o.amountUnknown || o.amount===null || o.amount===undefined || String(o.amount).trim()==='' || !Number.isFinite(Number(o.amount))) item.unknownAmount++;
     else item.amount+=Number(o.amount)||0;
     item.shops.add(o.shopName||getShopName(o.shopCode)||String(o.shopCode||''));
   });
   const rows=[...map.values()].map(x=>({...x,shops:[...x.shops].filter(Boolean)}));
-  const field=metric==='amount'?'amount':'count';
+  const field=metric==='amount'?'amount':(markerList.includes('h')?'honeyBottles':'count');
   rows.sort((a,b)=>(b[field]-a[field])||b.count-a.count||a.sales.localeCompare(b.sales,'zh-CN'));
   const shopLabel=shopCode?(getShopName(shopCode)||`${shopCode}号店`):'全部店铺';
   const markerLabel=markerList.map(m=>markerChartLabels[m]).join('+');
@@ -2845,7 +2888,7 @@ function renderMarkerRangeBarChart(startDate,endDate,shopCode,markers,startToken
   };
   const totalCount=rows.reduce((n,x)=>n+x.count,0);
   const totalAmount=rows.reduce((n,x)=>n+x.amount,0);
-  const metricLabel=metric==='amount'?'金额':'订单数';
+  const metricLabel=metric==='amount'?'金额':(markerList.includes('h')?'蜂蜜瓶数':'订单数');
   let html=`<div class="card" style="margin-top:12px"><div class="card-header"><div class="card-title">${escapeHtml(title)}</div><div style="font-size:12px;color:var(--gray-500)">${startDate} ～ ${endDate}</div></div><div class="card-body"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px" role="group" aria-label="图表统计指标"><button type="button" class="btn ${metric==='amount'?'btn-primary':'btn-outline'}" onclick="setMarkerRangeMetric('amount')" aria-pressed="${metric==='amount'}">金额排名</button><button type="button" class="btn ${metric==='count'?'btn-primary':'btn-outline'}" onclick="setMarkerRangeMetric('count')" aria-pressed="${metric==='count'}">订单数排名</button><span style="font-size:12px;color:var(--gray-500)">均按从高到低排列</span></div><div class="chart-command-summary"><div class="stat-card"><span class="stat-label">有效订单</span><span class="stat-value">${totalCount}</span><span class="stat-sub">排除 book 预约及已取消订单</span></div><div class="stat-card"><span class="stat-label">有效金额</span><span class="stat-value income">¥${totalAmount.toFixed(2)}</span><span class="stat-sub">价格未知订单计入订单数，不计入金额</span></div><div class="stat-card"><span class="stat-label">理疗师人数</span><span class="stat-value">${rows.length}</span><span class="stat-sub">按${metricLabel}从高到低排列</span></div></div>`;
   if(!rows.length){
     html+='<div class="empty-state" style="padding:20px">该日期范围内没有符合标签条件的有效订单。</div></div></div>';
@@ -2863,7 +2906,7 @@ function renderMarkerRangeBarChart(startDate,endDate,shopCode,markers,startToken
   rows.forEach((item,i)=>{
     const y=top+i*rowH,raw=Number(item[field])||0,bw=raw/niceMax*plotW;
     const shownName=displayName(item.sales);
-    const detail=`${shownName}（${item.sales}）\n有效订单：${item.count}\n有效金额：¥${item.amount.toFixed(2)}\n金额未知订单：${item.unknownAmount}\n店铺：${item.shops.join(' / ')||'—'}`;
+    const detail=`${shownName}（${item.sales}）\n有效订单：${item.count}\n蜂蜜瓶数：${item.honeyBottles||0}\n有效金额：¥${item.amount.toFixed(2)}\n金额未知订单：${item.unknownAmount}\n店铺：${item.shops.join(' / ')||'—'}`;
     const safeTitle=escapeHtml(detail);
     svg+=`<g class="bar-row"><title>${safeTitle}</title><text class="bar-name" x="${left-16}" y="${y+34}" text-anchor="end">${escapeHtml(shownName)}</text><rect x="${left}" y="${y+7}" width="${Math.max(0,bw)}" height="44" rx="7" fill="#2563eb" opacity="${i===0?'.95':'.76'}" class="bar-fill"><title>${safeTitle}</title></rect><text class="bar-value" x="${Math.min(left+bw+10,W-8)}" y="${y+36}" text-anchor="start">${metric==='amount'?'¥'+formatShort(raw):raw}</text></g>`;
   });
@@ -3630,12 +3673,12 @@ function convertWechatLogToOrders(inputText){
 // v239：set/confirm 均先生成可勾选预览；只有 Ctrl+Enter 才修改数据。
 function handleSetQueueCommand(text){
   const raw=String(text||'').trim();
-  // release：全店清除人工数字位置覆盖；Out/Break 属于离岗状态，不在此命令中清除。
+  // release：全店清除人工虚拟排序时间覆盖；Out/Break 属于离岗状态，不在此命令中清除。
   if(/^release$/i.test(raw)){
     const manualCount=Object.values(therapistQueueData?.shops||{}).reduce((sum,state)=>sum+(Array.isArray(state?.manualMoves)?state.manualMoves.length:0),0);
     const forcedCount=orders.filter(order=>order&&order.queueForceTurn).length;
     const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
-    parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:'release',shopCode:'*',targetKey:'',targetName:'全部店铺',targetPosition:null,setAction:'release',extra:`清除全部店铺的人工强制位置：${manualCount}项；清除历史订单中的强制轮转标记：${forcedCount}项。Out/Break状态及Out倒计时保留。`}];
+    parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:'release',shopCode:'*',targetKey:'',targetName:'全部店铺',targetPosition:null,setAction:'release',extra:`清除全部店铺的人工虚拟排序时间：${manualCount}项；清除历史订单中的强制轮转标记：${forcedCount}项。Out/Break状态及Out倒计时保留。`}];
     parsedDate='';renderParseResults();return true;
   }
   if(!/^set(?:\s|$)/i.test(raw))return false;
@@ -3647,11 +3690,13 @@ function handleSetQueueCommand(text){
     const [movingToken,anchorToken]=namedParts;
     const active=getTherapistQueueShop(namedShop).filter(item=>!item.isOut);
     const resolveActive=token=>{
+      if(/^\d+$/.test(token)){const n=Number(token);return n>=1&&n<=active.length?active[n-1]:null;}
       const norm=queueNormalizeName(token);
       return active.find(item=>item.key===norm||queueNormalizeName(item.name)===norm)||null;
     };
     const moving=resolveActive(movingToken),anchor=resolveActive(anchorToken);
-    if(moving && anchor){
+    // 两个数字仍走数字位置语义；数字来源+姓名目标（set 7 ni）走相对位置语义。
+    if(moving && anchor && !(/^\d+$/.test(movingToken)&&/^\d+$/.test(anchorToken))){
       if(moving.key===anchor.key){showToast('两位理疗师不能是同一个人。','error');return true;}
       const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
       parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${namedShop==='4'?'':namedShop+' '}${moving.name} ${anchor.name}`,shopCode:String(namedShop),targetKey:moving.key,targetName:moving.name,targetPosition:null,moveAfterNamed:true,anchorKey:anchor.key,anchorName:anchor.name,setAction:'namedMove',extra:`将 ${moving.name} 移到 ${anchor.name} 后面；两人之间的理疗师依次前移。`}];
@@ -3685,10 +3730,10 @@ function handleSetQueueCommand(text){
   if(action==='out')preview=`将 ${target.name} 标记为临时 Out：保持当前队列位置并显示60分钟倒计时；再次执行可重新计时，60分钟未续期自动转入 Break；期间接到实际订单则立即取消 Out 并按正常规则移至队尾。`;
   else if(action==='break')preview=`将 ${target.name} 立即移入 Break 区域，并取消正在进行的 Out 倒计时。`;
   else if(action==='in')preview=`将 ${target.name} 从 Break 区域召回，恢复正常队列规则。`;
-  else if(/^\d+$/.test(targetToken))preview=`将当前第 ${Number(targetToken)} 位理疗师移动到第 ${Number(action)} 位；例如 set 1 2 后，原第2位升为第1位，原第1位变为第2位。`;
+  else if(/^\d+$/.test(targetToken))preview=Number(action)===0?`将当前第 ${Number(targetToken)} 位理疗师直接移动到队列第1位（0代表队首）。`:`将当前第 ${Number(targetToken)} 位理疗师移动到第 ${Number(action)} 位；例如 set 1 2 后，原第2位升为第1位，原第1位变为第2位。`;
   else preview=`将 ${target.name} 调整到 ${getShopName(shopCode)} 队列中第 ${Number(action)} 位理疗师之后；接到下一笔真实订单后解除人工位置。`;
   const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
-  parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${shopCode==='4'?'':shopCode+' '}${target.name} ${action}`,shopCode:String(shopCode),targetKey:target.key,targetName:target.name,targetPosition:/^\d+$/.test(action)?Number(action):null,moveToPosition:/^\d+$/.test(targetToken)&&/^\d+$/.test(action),setAction:action,extra:preview}];
+  parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${shopCode==='4'?'':shopCode+' '}${target.name} ${action}`,shopCode:String(shopCode),targetKey:target.key,targetName:target.name,targetPosition:/^\d+$/.test(action)?Number(action):null,sourcePosition:/^\d+$/.test(targetToken)?Number(targetToken):null,moveToPosition:/^\d+$/.test(targetToken)&&/^\d+$/.test(action),setAction:action,extra:preview}];
   parsedDate='';renderParseResults();
   return true;
 }
@@ -3751,11 +3796,8 @@ function applySetQueueCommand(r){
     const newAnchorIndex=currentActive.findIndex(item=>item.key===String(r.anchorKey||''));
     if(newAnchorIndex<0)throw new Error('找不到目标理疗师，请刷新队列后重新执行。');
     currentActive.splice(newAnchorIndex+1,0,moving);
-    const moves=getTherapistQueueManualMoves(shopCode,true);
-    const existingIndex=moves.findIndex(move=>move&&move.key===key);
-    if(existingIndex>=0)moves.splice(existingIndex,1);
-    moves.push({key,name,afterKey:String(r.anchorKey),movedAt:new Date().toISOString()});
-    return `${name} 已移动到 ${r.anchorName} 后面。`;
+    saveTherapistQueueVirtualOrder(shopCode,currentActive);
+    return `${name} 已移动到 ${r.anchorName} 后面（虚拟秒级队列时间已更新）。`;
   }
   if(action==='out'){
     const now=new Date(),record={key,name,mode:'out',outAt:now.toISOString(),expiresAt:new Date(now.getTime()+60*60*1000).toISOString()};
@@ -3776,31 +3818,45 @@ function applySetQueueCommand(r){
     return `${name} 已从离开区域召回。`;
   }
   const afterPosition=Number(r.targetPosition);
-  if(!Number.isInteger(afterPosition)||afterPosition<1)throw new Error('目标位置必须是大于0的整数。');
+  if(!Number.isInteger(afterPosition)||afterPosition<0)throw new Error('目标位置无效；数字位置命令允许使用0表示队首。');
   if(outIndex>=0)outList.splice(outIndex,1);
   const moves=getTherapistQueueManualMoves(shopCode,true);
   const existingIndex=moves.findIndex(move=>move&&move.key===key);
   let moveRecord, resultMessage;
   if(r.moveToPosition){
-    // 两个数字形式 set 1 2：将原第1位插入第2位，原第2位自然升至第1位。
+    // 数字对数字：先按执行当下的队列解析来源，再插到目标位置之后；0代表队首。
     const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut);
-    const fromIndex=currentActive.findIndex(item=>item.key===key);
-    if(fromIndex<0)throw new Error(`当前队列找不到第${r.raw?.match(/^set\s+(\d+)/i)?.[1]||'?'}位理疗师。`);
-    const moving=currentActive.splice(fromIndex,1)[0];
-    const insertIndex=Math.max(0,Math.min(afterPosition-1,currentActive.length));
+    const fromIndex=Number.isInteger(r.sourcePosition)?r.sourcePosition-1:currentActive.findIndex(item=>item.key===key);
+    if(fromIndex<0||fromIndex>=currentActive.length)throw new Error(`当前队列找不到需要移动的理疗师 ${name}。`);
+    const moving=currentActive[fromIndex];
+    const anchorBeforeMove=afterPosition>0?currentActive[afterPosition-1]:null;
+    if(afterPosition>0&&!anchorBeforeMove)throw new Error(`当前队列没有第${afterPosition}位目标。`);
+    if(anchorBeforeMove&&anchorBeforeMove.key===moving.key)throw new Error('不能把理疗师移动到自己后面。');
+    currentActive.splice(fromIndex,1);
+    let insertIndex=0;
+    if(afterPosition>0){
+      const anchorIndex=currentActive.findIndex(item=>item.key===anchorBeforeMove.key);
+      if(anchorIndex<0)throw new Error('找不到移动目标，请刷新队列后重新执行。');
+      insertIndex=anchorIndex+1;
+    }
     currentActive.splice(insertIndex,0,moving);
-    const previous=currentActive[insertIndex-1]||null;
-    moveRecord={key,name,afterKey:previous?previous.key:'',atStart:!previous,movedAt:new Date().toISOString()};
-    resultMessage=`${name} 已移动到第 ${insertIndex+1} 位。`;
+    saveTherapistQueueVirtualOrder(shopCode,currentActive);
+    return afterPosition===0?`${name} 已移动到队首（虚拟秒级队列时间已更新）。`:`${name} 已移动到 ${anchorBeforeMove.name} 后面（虚拟秒级队列时间已更新）。`;
   }else{
-    const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut).filter(item=>item.key!==key);
-    const anchor=afterPosition<=currentActive.length?currentActive[afterPosition-1]:null;
-    moveRecord={key,name,afterKey:anchor?anchor.key:'',movedAt:new Date().toISOString()};
-    resultMessage=anchor?`${name} 已加入队列，排在 ${anchor.name} 后面。`:`${name} 已加入队列末尾（当前队列不足 ${afterPosition} 位）。`;
+    const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut);
+    const anchor=afterPosition>0&&afterPosition<=currentActive.length?currentActive[afterPosition-1]:null;
+    if(anchor&&anchor.key===key)throw new Error('不能把理疗师移动到自己后面。');
+    const existingIndex=currentActive.findIndex(item=>item.key===key);
+    const moving=existingIndex>=0?currentActive.splice(existingIndex,1)[0]:{key,name,shopCode,isManualPlaceholder:true,lastTurnAt:null};
+    let insertIndex=0;
+    if(afterPosition>0){
+      if(anchor){const anchorIndex=currentActive.findIndex(item=>item.key===anchor.key);insertIndex=anchorIndex+1;}
+      else insertIndex=currentActive.length;
+    }
+    currentActive.splice(insertIndex,0,moving);
+    saveTherapistQueueVirtualOrder(shopCode,currentActive);
+    return afterPosition===0?`${name} 已移动到队首（虚拟秒级队列时间已更新）。`:anchor?`${name} 已移动到 ${anchor.name} 后面（虚拟秒级队列时间已更新）。`:`${name} 已加入队列末尾（虚拟秒级队列时间已更新）。`;
   }
-  if(existingIndex>=0)moves.splice(existingIndex,1);
-  moves.push(moveRecord);
-  return resultMessage;
 }
 
 // v206：clear book 先生成待确认列表；只有 Ctrl+Enter 才真正删除。
