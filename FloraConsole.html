@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v260.html | 无序号空字段预约备注+尾号+时间识别，book仅按未来时间自动添加 -->
+<!-- VERSION: FloraConsole_v262.html | 修正未知价格/未知时长预览显示顺序并去重 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <meta name="flora-console-version" content="v260">
@@ -762,7 +762,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v260</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v262</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -5097,6 +5097,29 @@ function parseMessages(){
     }
   });
 
+  // v261：自动 book 只按完整目标日期+最后订单时间与解析时刻比较。
+  // 例如 11-21 + 1200：即使钟点12:00早于当前钟点，只要目标日期在明天，仍属于未来预约。
+  // 反之，今天的订单时间已过则不自动添加 book。备注、尾号、金额、时长均不参与判断。
+  const bookingNow = new Date();
+  const bookingNowKey = bookingNow.getFullYear()*100000000 +
+    (bookingNow.getMonth()+1)*1000000 + bookingNow.getDate()*10000 +
+    bookingNow.getHours()*100 + bookingNow.getMinutes();
+  parseResults.forEach(r=>{
+    if(!r || !r.matched || r.action || !r.time || !/^\\d{2}:\\d{2}$/.test(String(r.time))) return;
+    if(/book/i.test(String(r.sales||''))) return;
+    const baseDate = r.inputDate || parsedDate || todayStr();
+    const orderDate = dateWithOffset(baseDate, Number(r.dayOffset||0));
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(orderDate||''))) return;
+    const hhmm=String(r.time).replace(':','');
+    const orderKey=Number(orderDate.replace(/-/g,''))*10000 + Number(hhmm);
+    if(orderKey>bookingNowKey){
+      r.sales=String(r.sales||'')+'book';
+      if(r.orderRef && typeof r.orderRef==='object') r.orderRef.sales=r.sales;
+      if(r.amountUnknown===undefined && Number(r.amount||0)===0) r.amountUnknown=true;
+      if(r.extra && !/价格未知/.test(r.extra) && r.amountUnknown) r.extra+=' · 价格未知';
+    }
+  });
+
   // v207：在预览阶段标记将覆盖已有订单的输入行；匹配条件与 batchAddParse 的去重规则保持一致。
   // 不修改订单数据，也不改变后续 Ctrl+Enter 的新增/更新行为。
   const previewBaseDate=parsedDate||todayStr();
@@ -5952,7 +5975,7 @@ function renderParseResults(){
             </div>
             <div class="check-result-sub">
               <span class="check-field">时间 ${formatTime(r.time)}</span>
-              <span class="check-field">· ${r.amountUnknown?'<span style="color:var(--warn);font-weight:600">价格未知</span>':'<span class="parse-item-amount">¥'+Number(r.amount||0).toFixed(2)+'</span>'}</span>
+              <span class="check-field">· ${r.amountUnknown?'<span style="color:var(--warn);font-weight:700">价格未知</span>':'<span class="parse-item-amount">¥'+Number(r.amount||0).toFixed(2)+'</span>'}</span>
               ${detailParts.length?`<span class="check-field">· ${detailParts.join(' · ')}</span>`:''}
             </div>
           </div>
@@ -5969,6 +5992,12 @@ function renderParseResults(){
         </div>`;
         return;
       }
+      const isBlankFieldsNoteTailTime=r.appointmentDisplayFormat==='blankFieldsNoteTailTime';
+      const extraForDisplay=isBlankFieldsNoteTailTime
+        ? String(r.extra||'').split(' · ').filter(part=>part!=='价格未知'&&part!=='时长未知').join(' · ')
+        : String(r.extra||'');
+      const unknownDurationHtml=isBlankFieldsNoteTailTime&&!r.duration
+        ? ' · <span style="color:var(--warn);font-weight:700">时长未知</span>' : '';
       const overwriteHint=r.willOverwrite?`<span style="display:inline-flex;align-items:center;margin-left:7px;padding:2px 7px;border-radius:5px;background:#ffedd5;color:#9a3412;border:1px solid #fdba74;font-size:11px;font-weight:800" title="此订单确认后会更新并覆盖系统中已有订单${r.overwriteExistingTime?'；原订单时间 '+escapeHtml(r.overwriteExistingTime):''}">⚠ 将覆盖已有订单</span>`:'';
       const parseRowStyle=r.willOverwrite?'border-left:4px solid #d97706;background:#fff7e6':(r.action==='delete'?'border-left:3px solid var(--danger);background:var(--danger-light)':'');
       html+=`<div class="parse-item" style="${parseRowStyle}">
@@ -5978,8 +6007,9 @@ function renderParseResults(){
           · ${escapeHtml(r.sales)} ${r.seqNo?`<span style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}${r.phoneOrder?' ☎':''}${r.selfBooked?' 📞':''}${r.bankTransfer?' 🏦':''}${r.cardPayment?' 💳':''}${r.vip?' <span class=\"vip-mark\" title=\"VIP\">♛</span>':''}${getHoneyCount(r)>0?` ${honeyCountLabel(r)}`:''}
           ${r.action==='delete' ? '<span style="color:var(--danger);font-weight:700"> · 删除预约</span>' : `
           · ${r.amountUnknown?'<span style="color:var(--warn);font-weight:600">价格未知</span>':'<span class="parse-item-amount">¥'+r.amount.toFixed(2)+'</span>'}`}
+          ${unknownDurationHtml}
           · ${formatTime(r.time)}
-          ${r.extra?` <span style="color:${r.action==='delete'?'var(--danger)':'var(--gray-500)'};font-size:11px;background:${r.action==='delete'?'#fff':'var(--gray-100)'};padding:1px 5px;border-radius:3px">${escapeHtml(r.extra)}</span>`:''}
+          ${extraForDisplay?` <span style="color:${r.action==='delete'?'var(--danger)':'var(--gray-500)'};font-size:11px;background:${r.action==='delete'?'#fff':'var(--gray-100)'};padding:1px 5px;border-radius:3px">${escapeHtml(extraForDisplay)}</span>`:''}
           ${overwriteHint?`<div style="margin-top:5px">${overwriteHint}</div>${renderOverwriteComparison(r)}`:''}
         </div>
       </div>`;
