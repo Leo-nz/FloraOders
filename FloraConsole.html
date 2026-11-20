@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v258.html | set 队列改用虚拟秒级排序时间，支持同分钟精确插队 -->
+<!-- VERSION: FloraConsole_v260.html | 无序号空字段预约备注+尾号+时间识别，book仅按未来时间自动添加 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v258">
+<meta name="flora-console-version" content="v260">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -762,7 +762,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v258</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v260</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -1581,19 +1581,21 @@ function getTherapistQueueManualMoves(shopCode,create=false){
   }
   return shopState.manualMoves;
 }
-// v258：人工 set 不再保存数组位置，而是给队列成员写入独立的虚拟排序时间。
-// 真实订单时间仍保持分钟精度；虚拟秒只参与理疗师队列排序。
+// v259：人工 set 生成独立的虚拟排序序列，并记录本次人工操作发生时间。
+// virtualAt 只负责人工队列位置；manualAt 用来区分历史修正与 set 之后真正新增的订单。
 function saveTherapistQueueVirtualOrder(shopCode, orderedPeople){
   const moves=getTherapistQueueManualMoves(shopCode,true);
   const active=(orderedPeople||[]).filter(item=>item&&!item.isOut);
   const realTimes=active.map(item=>item.lastTurnAt instanceof Date?item.lastTurnAt.getTime():NaN).filter(Number.isFinite);
   const base=realTimes.length?Math.floor(Math.min(...realTimes)/60000)*60000:Math.floor(Date.now()/60000)*60000;
+  const manualAt=new Date().toISOString();
   const keep=new Map(moves.filter(move=>move&&move.key).map(move=>[move.key,move]));
   active.forEach((item,index)=>{
     const record=keep.get(item.key)||{key:item.key,name:item.name||item.key};
     record.name=item.name||record.name||item.key;
     record.virtualAt=base+index*1000;
-    record.movedAt=new Date().toISOString();
+    record.manualAt=manualAt;
+    record.movedAt=manualAt;
     delete record.position;delete record.afterKey;delete record.atStart;
     record.queueRank=index;
     keep.set(item.key,record);
@@ -1616,7 +1618,7 @@ function getTherapistQueueOutList(shopCode,create=false){
   }
   return shopState.outTherapists;
 }
-function completeManualQueueMoveForOrder(order){
+function completeManualQueueMoveForOrder(order,isNewActualOrder=false){
   if(!isQueueActualOrder(order))return false;
   const shopCode=String(order.shopCode||'');
   const key=queueNormalizeName(order.sales);
@@ -1626,16 +1628,25 @@ function completeManualQueueMoveForOrder(order){
   if(outIndex>=0){
     outList.splice(outIndex,1);
     changed=true;
-    // 离开期间接到正式订单，立即召回；该单作为新的接单时间点参与排序。
+    // 暂离期间真正新增/重新接回的实际订单会召回理疗师。
     order.queueForceTurn=true;
   }
-  const moves=getTherapistQueueManualMoves(shopCode,false);
-  const index=moves.findIndex(move=>move&&move.key===key);
-  if(index>=0){
-    moves.splice(index,1);
-    changed=true;
-    // 人工虚拟排序时间在下一笔正式订单后解除；该单即使金额不超过50也刷新队列时间。
-    order.queueForceTurn=true;
+  // 只有“新录入/取消后重新录入”的实际订单，且订单时间晚于人工 set 时刻，
+  // 才解除人工排序。修改旧订单、补录更早的历史订单均不清除人工位置。
+  if(isNewActualOrder){
+    const moves=getTherapistQueueManualMoves(shopCode,false);
+    const index=moves.findIndex(move=>move&&move.key===key);
+    if(index>=0){
+      const move=moves[index];
+      const orderAt=queueOrderDateTime(order)?.getTime();
+      const manualAt=Date.parse(move.manualAt||move.movedAt||'');
+      if(Number.isFinite(orderAt)&&Number.isFinite(manualAt)&&orderAt>manualAt){
+        moves.splice(index,1);
+        changed=true;
+        // 清除人工排序后，这笔新订单按真实时间加入队列，并强制刷新轮转时间。
+        order.queueForceTurn=true;
+      }
+    }
   }
   return changed;
 }
@@ -1731,7 +1742,7 @@ function getTherapistQueueSnapshot(now=new Date()){
       if(!a.lastTurnAt)return -1;if(!b.lastTurnAt)return 1;
       return a.lastTurnAt-b.lastTurnAt||a.name.localeCompare(b.name,'zh-CN');
     });
-    // v258：队列只使用一套排序机制。旧版位置/锚点数据仅在首次升级时转换成虚拟时间，
+    // v259：队列只使用一套排序机制。旧版位置/锚点数据仅在首次升级时转换成虚拟时间，
     // 转换完成后 position/afterKey/atStart 永久退出排序流程。
     const manualMoves=getTherapistQueueManualMoves(shopCode,false);
     manualMoves.forEach(move=>{
@@ -1760,6 +1771,16 @@ function getTherapistQueueSnapshot(now=new Date()){
       saveData();
     }
     const virtualByKey=new Map(manualMoves.filter(move=>move&&move.key&&Number.isFinite(Number(move.virtualAt))).map(move=>[move.key,Number(move.virtualAt)]));
+    // v259：兼容 v258 已保存的人工排序记录；首次升级时以当前时刻作为其人工操作时间，
+    // 之后的历史补录不清除该位置，只有更晚的新订单才会解除。
+    let migratedManualAt=false;
+    manualMoves.forEach(move=>{
+      if(!move||!move.key||!Number.isFinite(Number(move.virtualAt))||Number.isFinite(Date.parse(move.manualAt||'')))return;
+      const priorMoveAt=Date.parse(move.movedAt||'');
+      move.manualAt=Number.isFinite(priorMoveAt)?new Date(priorMoveAt).toISOString():new Date().toISOString();
+      migratedManualAt=true;
+    });
+    if(migratedManualAt)saveData();
     activePeople.forEach(item=>{const stamp=virtualByKey.get(item.key);if(Number.isFinite(stamp))item.queueSortAt=stamp;});
     if(virtualByKey.size)activePeople.sort((a,b)=>{
       const ta=Number.isFinite(a.queueSortAt)?a.queueSortAt:(a.lastTurnAt instanceof Date?a.lastTurnAt.getTime():-Infinity);
@@ -3697,7 +3718,6 @@ function handleSetQueueCommand(text){
     const moving=resolveActive(movingToken),anchor=resolveActive(anchorToken);
     // 两个数字仍走数字位置语义；数字来源+姓名目标（set 7 ni）走相对位置语义。
     if(moving && anchor && !(/^\d+$/.test(movingToken)&&/^\d+$/.test(anchorToken))){
-      if(moving.key===anchor.key){showToast('两位理疗师不能是同一个人。','error');return true;}
       const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
       parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${namedShop==='4'?'':namedShop+' '}${moving.name} ${anchor.name}`,shopCode:String(namedShop),targetKey:moving.key,targetName:moving.name,targetPosition:null,moveAfterNamed:true,anchorKey:anchor.key,anchorName:anchor.name,setAction:'namedMove',extra:`将 ${moving.name} 移到 ${anchor.name} 后面；两人之间的理疗师依次前移。`}];
       parsedDate='';renderParseResults();return true;
@@ -3730,7 +3750,7 @@ function handleSetQueueCommand(text){
   if(action==='out')preview=`将 ${target.name} 标记为临时 Out：保持当前队列位置并显示60分钟倒计时；再次执行可重新计时，60分钟未续期自动转入 Break；期间接到实际订单则立即取消 Out 并按正常规则移至队尾。`;
   else if(action==='break')preview=`将 ${target.name} 立即移入 Break 区域，并取消正在进行的 Out 倒计时。`;
   else if(action==='in')preview=`将 ${target.name} 从 Break 区域召回，恢复正常队列规则。`;
-  else if(/^\d+$/.test(targetToken))preview=Number(action)===0?`将当前第 ${Number(targetToken)} 位理疗师直接移动到队列第1位（0代表队首）。`:`将当前第 ${Number(targetToken)} 位理疗师移动到第 ${Number(action)} 位；例如 set 1 2 后，原第2位升为第1位，原第1位变为第2位。`;
+  else if(/^\d+$/.test(targetToken))preview=Number(action)===0?`将当前第 ${Number(targetToken)} 位理疗师直接移动到队列第1位（0代表队首）。`:`将目前第 ${Number(targetToken)} 位理疗师移动到目前第 ${Number(action)} 位理疗师之后；例如 set 1 2 后，原第2位升为第1位，原第1位变为第2位。`;
   else preview=`将 ${target.name} 调整到 ${getShopName(shopCode)} 队列中第 ${Number(action)} 位理疗师之后；接到下一笔真实订单后解除人工位置。`;
   const oldCheck=document.getElementById('checkResult');if(oldCheck){oldCheck.innerHTML='';oldCheck.classList.add('hidden');}
   parseResults=[{id:uid(),action:'setQueue',matched:true,selected:true,raw:`set ${shopCode==='4'?'':shopCode+' '}${target.name} ${action}`,shopCode:String(shopCode),targetKey:target.key,targetName:target.name,targetPosition:/^\d+$/.test(action)?Number(action):null,sourcePosition:/^\d+$/.test(targetToken)?Number(targetToken):null,moveToPosition:/^\d+$/.test(targetToken)&&/^\d+$/.test(action),setAction:action,extra:preview}];
@@ -3792,6 +3812,7 @@ function applySetQueueCommand(r){
     const fromIndex=currentActive.findIndex(item=>item.key===key);
     const anchorIndex=currentActive.findIndex(item=>item.key===String(r.anchorKey||''));
     if(fromIndex<0||anchorIndex<0)throw new Error('找不到需要调整的理疗师，请刷新队列后重新执行。');
+    if(fromIndex===anchorIndex)return `${name} 已按指令移动到 ${r.anchorName} 后面；队列顺序保持不变。`;
     const moving=currentActive.splice(fromIndex,1)[0];
     const newAnchorIndex=currentActive.findIndex(item=>item.key===String(r.anchorKey||''));
     if(newAnchorIndex<0)throw new Error('找不到目标理疗师，请刷新队列后重新执行。');
@@ -3831,7 +3852,10 @@ function applySetQueueCommand(r){
     const moving=currentActive[fromIndex];
     const anchorBeforeMove=afterPosition>0?currentActive[afterPosition-1]:null;
     if(afterPosition>0&&!anchorBeforeMove)throw new Error(`当前队列没有第${afterPosition}位目标。`);
-    if(anchorBeforeMove&&anchorBeforeMove.key===moving.key)throw new Error('不能把理疗师移动到自己后面。');
+    if(anchorBeforeMove&&anchorBeforeMove.key===moving.key){
+      return `${name} 已按指令移动到目前第 ${afterPosition} 位理疗师之后；队列顺序保持不变。`;
+    }
+    const originalOrder=currentActive.map(item=>item.key).join('|');
     currentActive.splice(fromIndex,1);
     let insertIndex=0;
     if(afterPosition>0){
@@ -3840,12 +3864,16 @@ function applySetQueueCommand(r){
       insertIndex=anchorIndex+1;
     }
     currentActive.splice(insertIndex,0,moving);
+    if(currentActive.map(item=>item.key).join('|')===originalOrder){
+      return afterPosition===0?`${name} 已按指令移动到队首；队列顺序保持不变。`:`${name} 已按指令移动到目前第 ${afterPosition} 位理疗师之后；队列顺序保持不变。`;
+    }
     saveTherapistQueueVirtualOrder(shopCode,currentActive);
     return afterPosition===0?`${name} 已移动到队首（虚拟秒级队列时间已更新）。`:`${name} 已移动到 ${anchorBeforeMove.name} 后面（虚拟秒级队列时间已更新）。`;
   }else{
     const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut);
     const anchor=afterPosition>0&&afterPosition<=currentActive.length?currentActive[afterPosition-1]:null;
-    if(anchor&&anchor.key===key)throw new Error('不能把理疗师移动到自己后面。');
+    if(anchor&&anchor.key===key)return `${name} 已按指令移动到目前第 ${afterPosition} 位理疗师之后；队列顺序保持不变。`;
+    const originalOrder=currentActive.map(item=>item.key).join('|');
     const existingIndex=currentActive.findIndex(item=>item.key===key);
     const moving=existingIndex>=0?currentActive.splice(existingIndex,1)[0]:{key,name,shopCode,isManualPlaceholder:true,lastTurnAt:null};
     let insertIndex=0;
@@ -3854,6 +3882,9 @@ function applySetQueueCommand(r){
       else insertIndex=currentActive.length;
     }
     currentActive.splice(insertIndex,0,moving);
+    if(currentActive.map(item=>item.key).join('|')===originalOrder){
+      return afterPosition===0?`${name} 已按指令移动到队首；队列顺序保持不变。`:`${name} 已按指令移动到目前第 ${afterPosition} 位理疗师之后；队列顺序保持不变。`;
+    }
     saveTherapistQueueVirtualOrder(shopCode,currentActive);
     return afterPosition===0?`${name} 已移动到队首（虚拟秒级队列时间已更新）。`:anchor?`${name} 已移动到 ${anchor.name} 后面（虚拟秒级队列时间已更新）。`:`${name} 已加入队列末尾（虚拟秒级队列时间已更新）。`;
   }
@@ -4258,6 +4289,59 @@ function parseMessages(){
         amount,amountUnknown,time:timeInfo.time,duration:durationText,room:'',guestTail,note,
         selfBooked:noteMarks.includes('y'),bankTransfer:noteMarks.includes('b'),cardPayment:noteMarks.includes('c'),vip:noteMarks.includes('v'),phoneOrder:noteMarks.includes('j'),honey:noteMarks.includes('h'),honeyCount:countHoneyMarkers(noteMarks),
         extra,dayOffset:timeInfo.dayOffset,autoCompleted:true,matched:true,selected:true
+      });
+      return prefix;
+    });
+
+    // v260：无序号、金额/时长均留空，备注 + 四位尾号 + 最后时间。
+    // 例如 truda,,,,200要做一个小时vip,5819,1530。
+    // 备注中的数字/时长/VIP文字全部作为备注原文，不推断金额、时长或标签。
+    // 是否自动添加 book 只看最后时间是否晚于本次解析时刻；过去/当前时间不自动加 book。
+    const noSeqBlankFieldsNoteTailTimeRegex=/(^|[\s;])([a-zA-Z\u4e00-\u9fa5][\w\u4e00-\u9fa5（）@〔〕+\-\[\]]*)[,/]\s*[,/]\s*[,/]\s*[,/]\s*([^,/]+?)[,/]\s*(\d{4})[,/]\s*(\d{1,4})(?=\s|$|[;，。,.!?！？])/g;
+    noSeqBlankFieldsNoteTailTimeRegex.lastIndex=0;
+    text=text.replace(noSeqBlankFieldsNoteTailTimeRegex,(whole,prefix,sales,rawNote,tailDigits,rawTime)=>{
+      const timeInfo=resolveOrderTimeInfo(String(rawTime||''),parseBaseMinutes);
+      if(!timeInfo.time) return whole;
+      const note=String(rawNote||'').trim();
+      if(!note) return whole;
+      const absoluteOrderMinutes=(Number(timeInfo.dayOffset)||0)*1440+Number(String(timeInfo.time).slice(0,2))*60+Number(String(timeInfo.time).slice(2,4));
+      const isFuture=absoluteOrderMinutes>parseBaseMinutes;
+      const orderSales=isFuture&&!/book/i.test(sales)?sales+'book':sales;
+      const targetDate=dateWithOffset(parsedDate||todayStr(),timeInfo.dayOffset);
+      const seqNo=findUnusedSeqNo(currentShopCode,orderSales,targetDate);
+      const guestTail=normalizeGuestTail(tailDigits);
+      parseResults.push({
+        id:uid(),raw:`${sales},${seqNo},,,${note},${tailDigits},${rawTime}`,
+        shopCode:currentShopCode,shopName:currentShopName,sales:orderSales,seqNo,
+        amount:0,amountUnknown:true,time:timeInfo.time,duration:'',room:'',guestTail,note,
+        extra:[`客人尾号${guestTail}`,`备注：${note}`,'价格未知','时长未知'].join(' · '),
+        dayOffset:timeInfo.dayOffset,autoCompleted:true,appointmentDisplayFormat:'blankFieldsNoteTailTime',
+        matched:true,selected:true
+      });
+      return prefix;
+    });
+
+    // v259：无序号预约固定字段格式，序号位允许留空，且尾号后可跟1-2位分钟偏移。
+    // 例如 neha,,100,20,3527,24 → nehabook，自动序号，金额100，20分钟，尾号3527，当前时间+24分钟。
+    // 双逗号是明确的空序号字段；3527 必须作为尾号，最后的24必须作为相对时间。
+    const noSeqBlankNumberTailOffsetRegex=/(^|[\s;])([a-zA-Z\u4e00-\u9fa5][\w\u4e00-\u9fa5（）@〔〕+\-\[\]]*)[,/]\s*[,/]\s*(\d+(?:\.\d+)?)[,/]\s*(\d{1,3})[,/]\s*(\d{4})[,/]\s*(\d{1,2}|\d{3,4})(?=\s|$|[;，。,.!?！？])/g;
+    noSeqBlankNumberTailOffsetRegex.lastIndex=0;
+    text=text.replace(noSeqBlankNumberTailOffsetRegex,(whole,prefix,sales,rawAmount,rawDuration,tailDigits,rawTime)=>{
+      const amountText=String(rawAmount||'').trim();
+      const durationText=String(rawDuration||'').trim();
+      const timeInfo=resolveOrderTimeInfo(String(rawTime||''),parseBaseMinutes);
+      if(!/^\d+(?:\.\d+)?$/.test(amountText)||!/^\d{1,3}$/.test(durationText)||!timeInfo.time)return whole;
+      const appointmentSales=/book/i.test(sales)?sales:(sales+'book');
+      const targetDate=dateWithOffset(parsedDate||todayStr(),timeInfo.dayOffset);
+      const seqNo=findUnusedSeqNo(currentShopCode,appointmentSales,targetDate);
+      const guestTail=normalizeGuestTail(tailDigits);
+      const amount=Number(amountText);
+      parseResults.push({
+        id:uid(),raw:`${sales},${seqNo},${amountText},${durationText},${guestTail},${rawTime}`,
+        shopCode:currentShopCode,shopName:currentShopName,sales:appointmentSales,seqNo,
+        amount,amountUnknown:false,time:timeInfo.time,duration:durationText,room:'',guestTail,
+        extra:[`停留${durationText}分`,`客人尾号${guestTail}`].join(' · '),
+        autoCompleted:true,dayOffset:timeInfo.dayOffset,matched:true,selected:true
       });
       return prefix;
     });
@@ -6122,8 +6206,7 @@ function batchAddParse(){
         const incomingNote=String(r.note||'').trim();
         if(incomingNote) orders[idx].note=incomingNote;
         orders[idx].status='pending';
-        completeManualQueueMoveForOrder(orders[idx]);
-        if(wasCanceledBeforeReentry)recordTherapistQueueTurn(orders[idx]);
+        if(wasCanceledBeforeReentry){completeManualQueueMoveForOrder(orders[idx],true);recordTherapistQueueTurn(orders[idx]);}
         updatedCount++;
       } else {
         // New message has earlier time → skip, keep existing (later time wins)
@@ -6131,7 +6214,7 @@ function batchAddParse(){
       }
     } else {
       const newOrder={id:uid(),date:orderDate,shopCode:r.shopCode,shopName:r.shopName,sales:r.sales,seqNo:r.seqNo,amount:r.amount,amountUnknown:r.amountUnknown||false,time:r.time,status:'pending',extra:r.extra,autoCompleted:!!r.autoCompleted,guestTail:getGuestTail(r),raw:r.raw||'',duration:r.duration||'',room:r.room||'',selfBooked:!!r.selfBooked,bankTransfer:!!r.bankTransfer,cardPayment:!!r.cardPayment,vip:!!r.vip,offsite:!!r.offsite,phoneOrder:!!r.phoneOrder,honey:!!r.honey,honeyCount:getHoneyCount(r),note:r.note||''};
-      completeManualQueueMoveForOrder(newOrder);
+      completeManualQueueMoveForOrder(newOrder,true);
       orders.push(newOrder);
       // 只有实际新录入的订单触发轮转；book预约不会进入队列事件。
       recordTherapistQueueTurn(newOrder);
