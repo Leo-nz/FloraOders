@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v262.html | 修正未知价格/未知时长预览显示顺序并去重 -->
+<!-- VERSION: FloraConsole_v265.html | 固定字段解析支持备注后接尾号与相对时间 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <meta name="flora-console-version" content="v260">
@@ -610,6 +610,9 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .turn-queue-toggle small{font-size:10px;color:#475569;margin-left:auto}
 .turn-queue-toggle span{font-size:11px;color:#334155;font-weight:600}
 .turn-queue-strip{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:9px 11px;scrollbar-width:thin;background:#fff}
+.turn-queue-strip.queue-primary-strip{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;align-items:stretch}
+.turn-queue-strip.queue-primary-strip .turn-queue-chip{flex:0 1 96px;min-width:76px;max-width:116px}
+.turn-queue-strip.queue-primary-strip .queue-out-divider{flex:0 0 24px}
 .turn-queue-chip{flex:0 0 auto;min-width:68px;max-width:116px;padding:6px 9px;border:1px solid rgba(0,0,0,.15);border-radius:8px;color:#475467;text-align:center;line-height:1.15;box-shadow:0 1px 2px rgba(15,23,42,.10)}
 .turn-queue-chip[role="button"]{cursor:pointer}
 .turn-queue-chip strong{display:block;font-size:12px;color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750}
@@ -677,11 +680,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 
 <main class="container main">
 
-  <div id="backupBanner" class="backup-banner hidden">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    <span id="backupText">数据已积累 30 条，建议导出备份</span>
-    <button onclick="exportJSON()">立即备份</button>
-  </div>
+
 
   <section class="today-section card">
     <div class="card-header">
@@ -762,7 +761,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v262</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v265</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -1063,7 +1062,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 
           </div>
           <div class="form-actions">
-            <button class="btn btn-outline" onclick="document.getElementById('parseTextarea').value='';document.getElementById('parseResult').innerHTML='';const cr=document.getElementById('checkResult');if(cr){cr.innerHTML='';cr.classList.add('hidden')}parseResults=[]">清空[C]</button>
+            <button class="btn btn-outline" onclick="clearParseWorkspace()">清空[C]</button>
             <button class="btn btn-primary" onclick="parseMessages()">
               解析订单[T]
             </button>
@@ -1906,7 +1905,7 @@ function renderTherapistTurnQueue(){
   const primary=all.get('4')||[];
   const now=new Date();
   const primaryActive=primary.filter(item=>!item.isOut);
-  const primaryHTML=primary.length?`<div class="turn-queue-strip">${renderTherapistQueueShopPanel('4',primary,now,true)}</div>`:`<div class="turn-queue-empty">最近3天暂无${escapeHtml(getShopName('4'))}理疗师订单</div>`;
+  const primaryHTML=primary.length?`<div class="turn-queue-strip queue-primary-strip">${renderTherapistQueueShopPanel('4',primary,now,true)}</div>`:`<div class="turn-queue-empty">最近3天暂无${escapeHtml(getShopName('4'))}理疗师订单</div>`;
   const title=document.getElementById('therapistTurnQueueTitle');if(title)title.textContent=`${getShopName('4')}理疗师队列`;
   // v228：无实际内容变化时跳过整块重绘，减少页面滚动位置被浏览器重新锚定。
   if(wrap.innerHTML!==primaryHTML)wrap.innerHTML=primaryHTML;
@@ -3406,6 +3405,11 @@ function handleCheckCommand(text){
       parsedDate=singleDate;
       mode='date';
       matchedOrders=orders.filter(o=>o.date===targetDate);
+    }else if(/^todaybooks?$/i.test(keyword)){
+      mode='todayBooks';
+      targetDate=todayStr();
+      parsedDate=targetDate;
+      matchedOrders=orders.filter(o=>String(o.date||'')===targetDate && isBook(o.sales));
     }else if(/^books?$/i.test(keyword)){
       mode='books';
       // book / books 均查询所有日期的预约。
@@ -3448,7 +3452,7 @@ function handleCheckCommand(text){
       return Number(a.seqNo||0)-Number(b.seqNo||0);
     }
     // 接下来预约：按即将开始的时间从近到远排列。
-    if(mode==='nextBooks'){
+    if(mode==='nextBooks' || mode==='todayBooks'){
       const da=String(a.date||''),db=String(b.date||'');
       if(da!==db)return da.localeCompare(db);
       const ta=String(a.time||'0000').replace(':','').padStart(4,'0');
@@ -3497,7 +3501,9 @@ function handleCheckCommand(text){
         ? `${targetDate} 的预约`
         : mode==='books'
           ? '所有日期的预约'
-          : mode==='nextBooks'
+          : mode==='todayBooks'
+            ? '今天的预约'
+            : mode==='nextBooks'
             ? '接下来预约单'
             : mode==='guestTail'
               ? `尾号 ${keyword} 的预约`
@@ -3946,7 +3952,7 @@ function runQuickCommand(kind){
   else if(kind==='confirmall') command='confirm all';
   else if(kind==='clearbook') command='clear book';
   else if(kind==='honey') command=`chart h ${now.getMonth()+1}-1 ${monthDay(now)}`;
-  else if(kind==='todaybook') command='check book';
+  else if(kind==='todaybook') command='check todaybook';
   else if(kind==='nextbook') command='check nextbook';
   if(!command)return;
   const input=document.getElementById('parseTextarea');
@@ -4148,6 +4154,40 @@ function parseMessages(){
   // Helper: extract all orders from a text string, assign to current shop
   function extractOrders(text){
     const resultStartIndex=parseResults.length;
+
+    // v264：固定字段格式允许在金额/时长之后插入自由备注，再接四位尾号和最后时间。
+    // 支持：qian,,150,15,备注,7262,15 以及 4 daisybook,1,,,来两人要两个,0415,2000。
+    // 序号/金额/时长可按字段留空；备注不作为理疗室；尾号保留前导零；末项1-2位为相对分钟。
+    const noteBeforeTailFixedRegex=/(^|[\s;])([a-zA-Z\u4e00-\u9fa5][\w\u4e00-\u9fa5（）@〔〕+\-\[\]]*)[,/]([^,/]*)[,/]([^,/]*)[,/]([^,/]*)[,/]([^,/]+?)[,/](\d{4})[,/](\d{1,4})(?=\s|$|[;，。,.!?！？])/g;
+    noteBeforeTailFixedRegex.lastIndex=0;
+    text=text.replace(noteBeforeTailFixedRegex,(whole,prefix,sales,rawSeq,rawAmount,rawDuration,rawNote,tailDigits,rawTime)=>{
+      const seqText=String(rawSeq||'').trim();
+      const amountText=String(rawAmount||'').trim();
+      const durationText=String(rawDuration||'').trim();
+      const note=String(rawNote||'').trim();
+      if((seqText!==''&&!/^\d+$/.test(seqText)) ||
+         (amountText!==''&&!/^\d+(?:\.\d+)?$/.test(amountText)) ||
+         (durationText!==''&&!/^\d+(?:\.\d+)?$/.test(durationText)) ||
+         !note || /^\d+(?:\.\d+)?$/.test(note)) return whole;
+      const timeInfo=resolveOrderTimeInfo(String(rawTime||''),parseBaseMinutes);
+      if(!timeInfo.time) return whole;
+      const targetDate=dateWithOffset(parsedDate||todayStr(),timeInfo.dayOffset);
+      const isBook=/book/i.test(sales);
+      const orderSales=sales;
+      const seqNo=seqText?parseInt(seqText,10):findUnusedSeqNo(currentShopCode,orderSales,targetDate);
+      const guestTail=normalizeGuestTail(tailDigits);
+      const amountUnknown=amountText==='';
+      const amount=amountUnknown?0:Number(amountText);
+      const extra=[durationText?`停留${durationText}分`:'',`客人尾号${guestTail}`,`备注：${note}`,amountUnknown?'价格未知':'',durationText?'':'时长未知'].filter(Boolean).join(' · ');
+      parseResults.push({
+        id:uid(),raw:`${sales},${seqText},${amountText},${durationText},${note},${tailDigits},${rawTime}`,
+        shopCode:currentShopCode,shopName:currentShopName,sales:orderSales,seqNo,
+        amount,amountUnknown,time:timeInfo.time,duration:durationText,room:'',guestTail,note,
+        extra,dayOffset:timeInfo.dayOffset,autoCompleted:true,
+        appointmentDisplayFormat:'blankFieldsNoteTailTime',matched:true,selected:true
+      });
+      return prefix;
+    });
     // v223：完整预留空字段的预约格式。金额为空时，跳过空占位，首个非空数字为时长，
     // 随后的3-4位数字（可附六类标记）是客人尾号，不是房号；例如 lily,,,60,0298,1440。
     // 只有这种明确的空字段布局才按固定位置处理；省略逗号的短格式仍交给智能解析。
@@ -5152,6 +5192,17 @@ function parseMessages(){
 // H：说明
 // ============================================================
 // v226：Ctrl+T只执行解析，不额外调用 focus()，不触发延迟焦点恢复。
+function clearParseWorkspace(){
+  const input=document.getElementById('parseTextarea');if(input)input.value='';
+  const result=document.getElementById('parseResult');if(result)result.innerHTML='';
+  const check=document.getElementById('checkResult');if(check){check.innerHTML='';check.classList.add('hidden');}
+  parseResults=[];
+  if(typeof parsedDate!=='undefined')parsedDate='';
+  if(typeof lastCheckQueryMeta!=='undefined')lastCheckQueryMeta=null;
+  if(typeof sequenceGapReport!=='undefined')sequenceGapReport=null;
+  if(typeof sequenceGapPage!=='undefined')sequenceGapPage=0;
+}
+
 document.addEventListener('keydown', function(e){
   // v236：三个首页列表的独立展开/折叠快捷键。
   if(e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey){
@@ -5185,9 +5236,10 @@ document.addEventListener('keydown', function(e){
   }
 
   
-  // ⭐ Ctrl + C：清空parseTextarea数据
-  if(e.ctrlKey && e.key.toLowerCase() === 'c'){
-    parseTextarea.value = ""
+  // ⭐ Ctrl + C：与界面“清空”按钮执行完全相同的清理操作
+  if(e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'c'){
+    e.preventDefault();
+    clearParseWorkspace();
   }
 
   // ⭐ Ctrl + Enter：先将 textarea 内容复制到剪贴板，再确认添加订单
@@ -5561,7 +5613,7 @@ function renderCheckResults(){
   const checkRows=rawCheckRows.slice().sort((a,b)=>{
     const da=String(a.date||a.checkQueryDate||'');
     const db=String(b.date||b.checkQueryDate||'');
-    if(lastCheckQueryMeta?.mode==='nextBooks'){
+    if(['nextBooks','todayBooks'].includes(lastCheckQueryMeta?.mode)){
       if(da!==db)return da.localeCompare(db);
       const ta=String(a.time||'0000').replace(':','').padStart(4,'0');
       const tb=String(b.time||'0000').replace(':','').padStart(4,'0');
@@ -5589,13 +5641,14 @@ function renderCheckResults(){
     return sb-sa;
   });
   const queryMode=checkRows.length ? (checkRows[0].checkMode||'') : (lastCheckQueryMeta?.mode||'');
-  const modeText={date:'日期',book:'预约',books:'全部日期预约',nextBooks:'接下来预约',bookDate:'指定日期预约',therapist:'理疗师',shop:'店铺',therapistDate:'日期 + 理疗师',therapistDateRange:'日期范围 + 理疗师',markerCombination:'标签组合'}[queryMode]||'查询';
+  const modeText={date:'日期',book:'预约',books:'全部日期预约',todayBooks:'今天预约',nextBooks:'接下来预约',bookDate:'指定日期预约',therapist:'理疗师',shop:'店铺',therapistDate:'日期 + 理疗师',therapistDateRange:'日期范围 + 理疗师',markerCombination:'标签组合'}[queryMode]||'查询';
 
   let queryValue='';
   if(checkRows.length){
     if(queryMode==='date') queryValue=checkRows[0].date||parsedDate||'';
     else if(queryMode==='book') queryValue='今天全部预约';
     else if(queryMode==='books') queryValue='所有日期预约';
+    else if(queryMode==='todayBooks') queryValue='今天预约';
     else if(queryMode==='nextBooks') queryValue='接下来预约单';
     else if(queryMode==='bookDate') queryValue=(checkRows[0].checkQueryDate||checkRows[0].date||parsedDate||'')+' 预约';
     else if(queryMode==='shop') queryValue=(checkRows[0].shopCode||'')+'号店';
@@ -5642,6 +5695,7 @@ function renderCheckResults(){
     : queryMode==='shop' ? `店铺：${queryValue}`
     : queryMode==='date' ? `日期：${queryValue}`
     : (queryMode==='therapistDate' || queryMode==='therapistDateRange') ? `日期/理疗师：${queryValue}`
+    : queryMode==='todayBooks' ? `今天预约：${queryValue}`
     : queryMode==='nextBooks' ? `接下来预约单：${queryValue}`
     : queryMode==='bookDate' ? `指定日期预约：${queryValue}`
     : queryMode==='books' || queryMode==='book' ? '预约：所有日期'
@@ -5974,8 +6028,10 @@ function renderParseResults(){
               <span class="check-result-status" style="color:${statusColor}">${escapeHtml(statusText)}</span>
             </div>
             <div class="check-result-sub">
+              ${['todayBooks','nextBooks'].includes(r.checkMode||lastCheckQueryMeta?.mode)?`<span class="check-field" style="font-weight:700;color:var(--gray-700)">${escapeHtml(String(r.date||'日期未知').replace(/^\d{4}-(\d{2})-(\d{2})$/,'$1月$2日'))}</span>`:''}
               <span class="check-field">时间 ${formatTime(r.time)}</span>
               <span class="check-field">· ${r.amountUnknown?'<span style="color:var(--warn);font-weight:700">价格未知</span>':'<span class="parse-item-amount">¥'+Number(r.amount||0).toFixed(2)+'</span>'}</span>
+              ${!String(r.duration||'').trim()?`<span class="check-field">· <span style="color:var(--warn);font-weight:700">时长未知</span></span>`:''}
               ${detailParts.length?`<span class="check-field">· ${detailParts.join(' · ')}</span>`:''}
             </div>
           </div>
@@ -7417,6 +7473,7 @@ function confirmClear(){
 
 function checkBackupBanner(){
   const banner=document.getElementById('backupBanner'),text=document.getElementById('backupText');
+  if(!banner||!text)return;
   if(orders.length>=30){text.textContent=`数据已积累 ${orders.length} 条，建议导出备份`;banner.classList.remove('hidden');}
   else{banner.classList.add('hidden');}
 }
