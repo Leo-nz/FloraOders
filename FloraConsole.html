@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v270.html | Break整块点击召回；提示文字保持中性；解析显示召回后的队列位置 -->
+<!-- VERSION: FloraConsole_v272.html | 未来时间自动book；预约Shift+Click客户描述；普通Click保留原字段并追加,x换行 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v270">
+<meta name="flora-console-version" content="v272">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -765,7 +765,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v270</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v272</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -4205,6 +4205,7 @@ function parseMessages(){
   function extractOrders(text){
     const resultStartIndex=parseResults.length;
 
+    // v272：统一预约 Shift+Click 描述格式；保留 v271 的自动 book 与普通 Click 回填。
     // v268沿用：微信自然语言预约时间支持数字/中文数字“几点”与“几点半”。
     // v268：Break人员恢复卡片外框与召回按钮背景；姓名与召回按钮同行，Break独占下一行。
 // v266：预约订单回填以 ,x 结尾后自动换行。
@@ -4225,15 +4226,21 @@ function parseMessages(){
       const timeInfo=resolveOrderTimeInfo(String(rawTime||''),parseBaseMinutes);
       if(!timeInfo.time) return whole;
       const targetDate=dateWithOffset(parsedDate||todayStr(),timeInfo.dayOffset);
-      const isBook=/book/i.test(sales);
-      const orderSales=sales;
+      const actualTimeMinutes=parseInt(timeInfo.time.slice(0,2),10)*60+parseInt(timeInfo.time.slice(2),10);
+      const todayDate=todayStr();
+      const isFutureDate=targetDate>todayDate;
+      const isFutureTimeToday=targetDate===todayDate && timeInfo.dayOffset===0 && actualTimeMinutes>parseBaseMinutes;
+      // v271：固定字段“序号,空金额,空时长,备注,尾号,时间”同样按完整日期时间判断未来预约；未来时自动补 book。
+      const autoBookFuture=!/book/i.test(sales) && /^\d{4}$/.test(String(rawTime||'')) && (isFutureDate||isFutureTimeToday);
+      const orderSales=autoBookFuture?sales+'book':sales;
+      const isBook=/book/i.test(orderSales);
       const seqNo=seqText?parseInt(seqText,10):findUnusedSeqNo(currentShopCode,orderSales,targetDate);
       const guestTail=normalizeGuestTail(tailDigits);
       const amountUnknown=amountText==='';
       const amount=amountUnknown?0:Number(amountText);
       const extra=[durationText?`停留${durationText}分`:'',`客人尾号${guestTail}`,`备注：${note}`,amountUnknown?'价格未知':'',durationText?'':'时长未知'].filter(Boolean).join(' · ');
       parseResults.push({
-        id:uid(),raw:`${sales},${seqText},${amountText},${durationText},${note},${tailDigits},${rawTime}`,
+        id:uid(),raw:`${orderSales},${seqText},${amountText},${durationText},${note},${tailDigits},${rawTime}`,
         shopCode:currentShopCode,shopName:currentShopName,sales:orderSales,seqNo,
         amount,amountUnknown,time:timeInfo.time,duration:durationText,room:'',guestTail,note,
         extra,dayOffset:timeInfo.dayOffset,autoCompleted:true,
@@ -5530,6 +5537,12 @@ function buildOrderEditText(o){
     const noteText=String(o?.note||'').trim();
     let fifthField;
     if(isBookBlock){
+      // v271：备注与尾号分列的固定字段预约，普通 Click 保留原始字段顺序；末尾 ,x 后由 Send2ParseTextArea 自动换行。
+      if(o?.appointmentDisplayFormat==='blankFieldsNoteTailTime'){
+        const amountText=o?.amountUnknown?'':Number(o?.amount||0).toFixed(0);
+        const noteField=String(o?.note||'').trim();
+        return `${o.shopCode} ${salesName},${o.seqNo||''},${amountText},${o.duration||''},${noteField},${guestTail},${o.time},x`;
+      }
       // v212：book普通Click必须保留备注与标记。即使历史记录只保存了“专属”文字、
       // selfBooked 标志未恢复，也按用户定义将“专属”规范为 y专属，避免回填丢失自约标志。
       const markerPrefix=[o?.bankTransfer?'b':'',o?.selfBooked?'y':'',o?.cardPayment?'c':'',o?.vip?'v':'',o?.phoneOrder?'j':'','h'.repeat(getHoneyCount(o))].join('');
@@ -5593,32 +5606,24 @@ function shiftClickDescription(o){
     const time=String(o.time||'');
     const hhmm=time.length===4?`${time.slice(0,2)}:${time.slice(2)}`:time;
     if(/book/i.test(salesName)){
-      if(o.appointmentDisplayFormat==='noSeqParenNote'){
-        const amountText=o.amountUnknown?'未知':Number(o.amount||0).toFixed(0);
-        const durationText=o.duration?String(o.duration):'未知';
-        const noteText=String(o.note||'').trim();
-        const dateText=isToday?'':`，${orderDate}`;
-        return `${displayTherapistName}广告预约${guestTail?`，尾号${guestTail}`:''}${noteText?`，备注(${noteText})`:''}，金额${amountText}，时长${durationText}${dateText}，${hhmm}到`;
-      }
-      const amountText=o.amountUnknown?'价格未知':`$${Number(o.amount||0).toFixed(0)}`;
-      const durationText=o.duration?`${o.duration}分钟`:'时长未知';
+      // v272：预约 Shift+Click 统一格式；当天省略日期，非当天显示日期；备注固定放在最后。
+      const shopLabel=getShopName(o.shopCode)||`${o.shopCode}号店`;
+      const amountText=o.amountUnknown?'价格未知':`价格:$${Number(o.amount||0).toFixed(0)}`;
+      const durationText=o.duration?`时长:${o.duration}分钟`:'时长未知';
       const dateText=isToday?'':orderDate;
       let noteText=String(o.note||'').trim();
-      // v252：预约的(v)标记在客户友好描述中明确显示为“备注:vip”；保留其它备注。
       if(o.vip){
         if(!noteText || /^v(ip)?$/i.test(noteText)) noteText='vip';
         else if(!/(^|[,，\s])vip($|[,，\s])/i.test(noteText)) noteText+='，vip';
       }
-      const parts=[`${displayTherapistName}广告预约`];
+      const parts=[`${shopLabel} ${displayTherapistName}广告预约`];
       if(guestTail) parts.push(`尾号${guestTail}`);
       parts.push(amountText,durationText);
-      if(noteText) parts.push(`备注:${noteText}`);
       if(dateText) parts.push(dateText);
       parts.push(`${hhmm}到`);
+      if(noteText) parts.push(`备注：${noteText}`);
       return parts.join('，');
     }
-    const amountText=o.amountUnknown?'未知':Number(o.amount||0).toFixed(0);
-    const durationText=o.duration?String(o.duration):'未知';
     const roomText=String(o.room||'').trim()||'未知';
     const tags=[o.selfBooked?'📞':'',o.bankTransfer?'🏦':'',o.cardPayment?'💳':'',o.vip?'♛':'',o.phoneOrder?'☎':'',honeyCountLabel(o)].filter(Boolean).join(' ');
     return `${o.shopCode}号店 理疗师${displayTherapistName} 序号${o.seqNo||'自动'} 金额${amountText} 时长${durationText} 理疗室${roomText}${tags?' '+tags:''} ${hhmm}开始`;
