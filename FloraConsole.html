@@ -4,7 +4,7 @@
 <!-- VERSION: FloraConsole_v265.html | 固定字段解析支持备注后接尾号与相对时间 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v260">
+<meta name="flora-console-version" content="v266">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -627,6 +627,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .queue-out-divider span{writing-mode:vertical-rl;font-size:9px;font-weight:800;letter-spacing:1px;color:#475569;background:#e2e8f0;padding:4px 2px;border-radius:4px}
 .turn-queue-chip.queue-out-chip{background:#eef0f3;border:1px solid #9ca3af;color:#667085;box-shadow:none;opacity:.9}
 .turn-queue-chip.queue-out-chip strong,.turn-queue-chip.queue-out-chip small{color:#667085}
+.queue-break-person{flex:0 0 auto;min-width:68px;padding:4px 7px;text-align:center;line-height:1.2;background:transparent;border:0;box-shadow:none;color:#667085}.queue-break-person strong{display:block;font-size:12px;white-space:nowrap;font-weight:750}.queue-break-person small{display:block;font-size:9px;margin-top:3px;color:#667085;font-weight:600}.queue-break-recall{display:block;margin-top:3px;font-size:10px;line-height:1.2;color:#2563eb;text-decoration:underline;cursor:pointer;white-space:nowrap}
 .turn-queue-shop-panel .queue-out-divider{min-height:56px}
 .turn-queue-empty{padding:9px 11px;color:#475569;font-size:11px;background:#fff}
 .turn-queue-all-shops{display:grid;grid-template-columns:1fr;gap:9px}
@@ -761,7 +762,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v265</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v266</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -1877,7 +1878,7 @@ function renderTherapistQueueShopPanel(code,list,now=new Date(),compact=false){
   const active=list.filter(item=>!item.isOut);
   const out=list.filter(item=>item.isOut);
   const renderChip=(item,i,isOut)=>{
-    if(isOut)return `<div class="turn-queue-chip queue-out-chip" role="button" tabindex="0" onclick="queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)}" title="点击填入 set ${escapeAttr(item.name)} in，召回理疗师"><strong>${escapeHtml(item.name)}</strong><small>Break · 点击召回</small></div>`;
+    if(isOut)return `<div class="queue-break-person"><strong>${escapeHtml(item.name)}</strong><small>Break</small><span class="queue-break-recall" role="button" tabindex="0" onclick="queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();queueChipCommand('${String(code).replace(/'/g,"\\'")}','${escapeAttr(item.name)}',true)}" title="点击召回理疗师">点击召回</span></div>`;
     const busy=getTherapistBusyInfo(code,item.name,now);
     const booked=getTherapistNextBook(code,item.name,now);
     const cls=busy.busy?'busy':booked?'booked':item.lastTurnAt?'idle':'no-turn';
@@ -4155,7 +4156,8 @@ function parseMessages(){
   function extractOrders(text){
     const resultStartIndex=parseResults.length;
 
-    // v264：固定字段格式允许在金额/时长之后插入自由备注，再接四位尾号和最后时间。
+    // v266：Break召回改为无色块文字分行；预约订单回填以 ,x 结尾后自动换行。
+// v264：固定字段格式允许在金额/时长之后插入自由备注，再接四位尾号和最后时间。
     // 支持：qian,,150,15,备注,7262,15 以及 4 daisybook,1,,,来两人要两个,0415,2000。
     // 序号/金额/时长可按字段留空；备注不作为理疗室；尾号保留前导零；末项1-2位为相对分钟。
     const noteBeforeTailFixedRegex=/(^|[\s;])([a-zA-Z\u4e00-\u9fa5][\w\u4e00-\u9fa5（）@〔〕+\-\[\]]*)[,/]([^,/]*)[,/]([^,/]*)[,/]([^,/]*)[,/]([^,/]+?)[,/](\d{4})[,/](\d{1,4})(?=\s|$|[;，。,.!?！？])/g;
@@ -5449,8 +5451,8 @@ function Send2ParseTextArea(text, options={}){
 
         // 正常情况下 start === end，即在光标处插入；若用户选中了内容，
         // 为满足“不删除原有内容”，仍保留选中的原文本，并在选区起点插入。
-        // ⭐ 插入订单后自动补一个空格，连续点击多个色块时订单之间会自然分开。
-        const insertText = text + " ";
+        // v266：预约订单以 ,x 结尾，点击后追加换行，确保连续点击时每条预约独占一行；普通订单仍追加空格。
+        const insertText = /,x\s*$/i.test(String(text)) ? String(text).replace(/\s+$/,'') + "\n" : text + " ";
         ta.value = originalValue.slice(0, start) + insertText + originalValue.slice(start);
         const newCaret = start + insertText.length;
 
