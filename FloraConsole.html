@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v265.html | 固定字段解析支持备注后接尾号与相对时间 -->
+<!-- VERSION: FloraConsole_v267.html | 微信自然语言钟点识别，支持几点与几点半 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v266">
+<meta name="flora-console-version" content="v267">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -762,7 +762,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v266</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v267</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -3604,7 +3604,7 @@ function convertWechatLogToOrders(inputText){
     const time=String(hour).padStart(2,'0')+String(minute).padStart(2,'0');
     // v168：只清理消息内容中的格式噪声，不改动数字、英文字母及中文业务标记。
     // 保留数字/字母/中文、斜杠、逗号和空白；括号、表情及其他杂字符忽略。
-    let message=rawMessage.replace(/／/g,'/').replace(/，/g,',').replace(/\/{2,}/g,'/').replace(/,{2,}/g,',').replace(/[^\dA-Za-z\u4e00-\u9fff\/,：:点下午上午\s]/g,'').trim();
+    let message=rawMessage.replace(/／/g,'/').replace(/，/g,',').replace(/\/{2,}/g,'/').replace(/,{2,}/g,',').replace(/[^\dA-Za-z\u4e00-\u9fff\/,：:点半下午上午晚上早上清晨中午\s]/g,'').trim();
     const containsHoneyWord=/蜂蜜/.test(message);
     const looksLikeOrderMessage=/^\s*\d+\s*[\/,]/.test(message);
     if(containsHoneyWord && !looksLikeOrderMessage){
@@ -3638,12 +3638,20 @@ function convertWechatLogToOrders(inputText){
       pushWechatOrder(standardName,`${standardName}book,${String(hh).padStart(2,'0')}${String(mm).padStart(2,'0')}`);
       continue;
     }
-    // 明确钟点预约：5:00 在下午15:43的消息中按17:00处理；12:45等不做改写。
-    const explicitClock=message.match(/(?:预约\s*)?(?:下午|上午)?\s*(\d{1,2})\s*(?:[:：]\s*(\d{2})|点\s*(\d{1,2})?)\s*(?:左右)?\s*(?:预约|有约|有预约|约)?/);
+    // v267：微信自然语言钟点预约，支持“9点”“9点半”“9点半左右约客到”，并兼容中文数字与早/中/晚时间词。
+    // 未明确上午/下午时，结合消息发送时刻推断最近的未来钟点；例如20:36收到“9点半”=21:30。
+    const explicitClock=message.match(/(?:预约\s*)?(早上|清晨|上午|中午|下午|晚上|夜里)?\s*([0-9]{1,2}|[一二两三四五六七八九十]+)\s*(?:[:：]\s*([0-9]{2})|点\s*(半|[0-9]{1,2})?)\s*(?:左右)?\s*(?:预约|有约|有预约|约)?/);
     if(explicitClock && /预约|有约|有预约|约/.test(message)){
-      let hh=Number(explicitClock[1]), mm=Number(explicitClock[2]||explicitClock[3]||0);
+      const period=explicitClock[1]||'';
+      const hourToken=explicitClock[2];
+      const chineseHours={'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12};
+      let hh=/^\d+$/.test(hourToken)?Number(hourToken):(chineseHours[hourToken]||0);
+      let mm=explicitClock[3]!==undefined?Number(explicitClock[3]):(explicitClock[4]==='半'?30:Number(explicitClock[4]||0));
       const messageHour=hour;
-      if(hh<12 && messageHour>=12 && !/上午/.test(message) && (hh<messageHour || hh===messageHour)) hh+=12;
+      if(period==='下午'||period==='晚上'||period==='夜里') { if(hh<12) hh+=12; }
+      else if(period==='上午'||period==='早上'||period==='清晨') { if(hh===12) hh=0; }
+      else if(period==='中午') { if(hh<11) hh+=12; }
+      else if(hh<12 && messageHour>=12 && (hh<messageHour || (hh===messageHour && mm<=minute))) hh+=12;
       if(hh>=0 && hh<24 && mm>=0 && mm<60){
         if(!firstDate) firstDate=date;
         pushWechatOrder(standardName,`${standardName}book,${String(hh).padStart(2,'0')}${String(mm).padStart(2,'0')}`);
@@ -4156,6 +4164,7 @@ function parseMessages(){
   function extractOrders(text){
     const resultStartIndex=parseResults.length;
 
+    // v267：微信自然语言预约时间支持数字/中文数字“几点”与“几点半”。
     // v266：Break召回改为无色块文字分行；预约订单回填以 ,x 结尾后自动换行。
 // v264：固定字段格式允许在金额/时长之后插入自由备注，再接四位尾号和最后时间。
     // 支持：qian,,150,15,备注,7262,15 以及 4 daisybook,1,,,来两人要两个,0415,2000。
