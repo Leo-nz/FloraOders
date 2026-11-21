@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v272.html | 未来时间自动book；预约Shift+Click客户描述；普通Click保留原字段并追加,x换行 -->
+<!-- VERSION: FloraConsole_v277.html | Check结果统一日期、列对齐与30条分页；预约按时间正序 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v272">
+<meta name="flora-console-version" content="v276">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -440,9 +440,13 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .check-summary-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--gray-500);white-space:normal;}
 .check-summary-chip strong{font-size:11px;color:var(--gray-800);font-weight:800;}
 .check-summary-chip .check-summary-money{color:var(--danger);}
-.check-panel-list-compact .check-card-compact{display:flex;align-items:center;gap:7px;padding:5px 9px;min-height:31px;border-bottom:1px solid var(--gray-100);}
+.check-panel-list-compact{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.check-panel-list-compact .check-card-compact{display:flex;align-items:center;gap:7px;padding:5px 9px;min-height:31px;min-width:1280px;border-bottom:1px solid var(--gray-100);}
 .check-card-compact .check-select-marker{width:18px;min-width:18px;height:22px;font-size:17px;line-height:1;}
 .check-card-main-compact{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;width:100%;overflow:hidden;white-space:nowrap;font-size:11px;line-height:1.3;color:var(--gray-600);}
+.check-aligned-row{display:grid;grid-template-columns:100px 112px 42px 34px 92px 48px 82px 82px 48px 64px 76px minmax(110px,1fr) 54px;column-gap:7px;align-items:center;}
+.check-aligned-row .check-line-field,.check-aligned-row .check-line-note{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.check-aligned-row .check-line-book{font-weight:800;color:var(--primary);}
 .check-line-field{flex:0 0 auto;white-space:nowrap;}
 .check-line-shop{font-weight:800;color:var(--primary);}
 .check-line-sales{font-weight:700;color:var(--gray-800);}
@@ -468,8 +472,8 @@ input,select,textarea{font-family:inherit;font-size:16px}
 
 @media(max-width:760px){
   .check-summary-line{gap:5px 8px;}
-  .check-card-main-compact{gap:6px;overflow-x:auto;}
-  .check-line-note{max-width:100px;}
+  .check-card-main-compact{gap:7px;overflow:visible;}
+  .check-line-note{max-width:none;}
 }
 
 .phone-order-icon{color:#e53935!important;font-size:17px;font-weight:700;display:inline-block;line-height:1;margin:0 2px;vertical-align:middle;}
@@ -765,7 +769,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v272</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v277</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -2140,7 +2144,7 @@ function insertTodayOrder(id,event){
   const text=`${o.shopCode} ${o.autoCompleted&&o.selfBooked&&!o.seqNo?cleanSalesName(o.sales)+','+o.time:o.sales+','+o.seqNo+','+(o.amountUnknown?'':Number(o.amount||0).toFixed(0))+','+(o.duration||'')+','+orderMarkerField(o)+','+o.time}`;
   Send2ParseTextArea(text);
 }
-function quickConfirm(id){ const o=orders.find(x=>x.id===id); if(o){o.status='confirmed';saveData();renderAll();showToast('已确认');} }
+function quickConfirm(id){ const o=orders.find(x=>x.id===id); if(o){o.status='confirmed';saveData();renderAll();showToast('已确认');forceFloraLiveViewsRefresh();} }
 function goEdit(id){ switchTab('list'); setTimeout(()=>{ const row=document.querySelector(`[data-order-id="${id}"]`); if(row){row.style.background='var(--warn-light)';setTimeout(()=>row.style.background='',2000);} },100); }
 
 // ============================================================
@@ -3455,7 +3459,7 @@ function handleCheckCommand(text){
       if(ta!==tb) return ta.localeCompare(tb);
       return Number(a.seqNo||0)-Number(b.seqNo||0);
     }
-    // 接下来预约：按即将开始的时间从近到远排列。
+    // v276：今天预约与近期预约按预约日期/时间正序，最近一笔排在最前面。
     if(mode==='nextBooks' || mode==='todayBooks'){
       const da=String(a.date||''),db=String(b.date||'');
       if(da!==db)return da.localeCompare(db);
@@ -4206,6 +4210,7 @@ function parseMessages(){
     const resultStartIndex=parseResults.length;
 
     // v272：统一预约 Shift+Click 描述格式；保留 v271 的自动 book 与普通 Click 回填。
+    // v273：今天/近期预约查询列表统一样式、日期颜色与时间倒序。
     // v268沿用：微信自然语言预约时间支持数字/中文数字“几点”与“几点半”。
     // v268：Break人员恢复卡片外框与召回按钮背景；姓名与召回按钮同行，Break独占下一行。
 // v266：预约订单回填以 ,x 结尾后自动换行。
@@ -5668,6 +5673,8 @@ function renderCheckResults(){
   // 渲染器独立使用本地标准化函数，不依赖 handleCheckCommand 的局部变量。
   const normalizeCheckSalesName=v=>String(v||'').replace(/\s+/g,'').replace(/book/ig,'').toLowerCase();
   const isGroupedMarkerQuery=['selfBooked','bankTransfer','cardPayment','vip','phoneOrder','honey','markerCombination'].includes(lastCheckQueryMeta?.mode) || rawCheckRows.some(r=>['selfBooked','bankTransfer','cardPayment','vip','phoneOrder','honey','markerCombination'].includes(r.checkMode));
+  // v277：兼容后续分组渲染判断；此前引用了未声明的 isGroupedMarkerResult，导致所有非空 check 结果渲染中断。
+  const isGroupedMarkerResult=isGroupedMarkerQuery;
   const checkRows=rawCheckRows.slice().sort((a,b)=>{
     const da=String(a.date||a.checkQueryDate||'');
     const db=String(b.date||b.checkQueryDate||'');
@@ -5877,27 +5884,10 @@ function renderCheckResults(){
     return;
   }
 
-  // 有按天汇总的查询（日期范围理疗师、自约）按完整日期组分页；不拆分某一天的订单。
-  const isGroupedMarkerResult=['selfBooked','bankTransfer','cardPayment','vip','phoneOrder','honey','markerCombination'].includes(queryMode);
-  const keepDaysTogether=queryMode==='therapistDateRange' || isGroupedMarkerResult;
+  // v276：所有 check 结果统一每页最多30条，不因日期分组而突破页容量。
   const resultPages=[];
-  if(keepDaysTogether){
-    const dayGroups=[];
-    checkRows.forEach(row=>{
-      const date=String(row.date||row.checkQueryDate||'未知日期');
-      let group=dayGroups[dayGroups.length-1];
-      if(!group || group.date!==date){ group={date,rows:[]}; dayGroups.push(group); }
-      group.rows.push(row);
-    });
-    let pageRows=[];
-    dayGroups.forEach(group=>{
-      if(pageRows.length && pageRows.length+group.rows.length>30){ resultPages.push(pageRows); pageRows=[]; }
-      pageRows.push(...group.rows);
-    });
-    if(pageRows.length || !resultPages.length) resultPages.push(pageRows);
-  }else{
-    for(let i=0;i<checkRows.length;i+=30) resultPages.push(checkRows.slice(i,i+30));
-  }
+  for(let i=0;i<checkRows.length;i+=30) resultPages.push(checkRows.slice(i,i+30));
+  if(!resultPages.length) resultPages.push([]);
   const totalResultPages=Math.max(1,resultPages.length);
   checkResultPage=Math.max(0,Math.min(totalResultPages-1,checkResultPage));
   const visibleRows=resultPages[checkResultPage]||[];
@@ -5947,24 +5937,30 @@ function renderCheckResults(){
       .replace(/粘贴导入/g,'')
       .replace(/^[\s,，、·]+|[\s,，、·]+$/g,'')
       .trim();
-    const datePart=(queryMode==='books'||queryMode==='selfBooked'||queryMode==='bankTransfer'||queryMode==='cardPayment'||queryMode==='vip'||queryMode==='phoneOrder'||queryMode==='honey'||queryMode==='markerCombination'||queryMode==='therapistDateRange') ? `<span class="check-line-field check-line-date">${escapeHtml(r.date||'')}</span>` : '';
-    const durationText=r.duration ? `${escapeHtml(r.duration)}分钟` : '未知时长';
+    const rowDate=String(r.date||'日期未知');
+    const rowDateColor=rowDate===todayStr()?'#16a34a':(rowDate>todayStr()?'#2563eb':'var(--gray-500)');
+    const datePart=`<span class="check-line-field check-line-date" style="color:${rowDateColor}">${escapeHtml(rowDate)}</span>`;
+    const durationText=r.duration ? `${escapeHtml(r.duration)}分钟` : '<span class="check-line-unknown">未知时长</span>';
     const roomText=r.room ? roomBracket(r.room) : '';
     const tailText=tail ? `尾号 ${escapeHtml(tail)}` : '';
-    html+=`<div class="check-card check-card-compact">
-      <div class="check-select-marker ${r.selected?'selected':''}" style="color:${getShopColor(r.shopCode)}" onclick="toggleParse(${idx})" title="点击选择/取消选择">〔</div>
-      <div class="check-card-main check-card-main-compact" onclick="insertCheckOrder(${idx},event)" title="左键插入订单；Shift+左键替换输入框并复制预约描述" style="cursor:pointer">
+    const markerText=(r.phoneOrder||r.selfBooked||r.bankTransfer||r.cardPayment||r.vip||r.honey)?`${r.phoneOrder?'☎ ':''}${r.selfBooked?'📞 ':''}${r.bankTransfer?'🏦 ':''}${r.cardPayment?'💳 ':''}${r.vip?'♛ ':''}${getHoneyCount(r)>0?'🍯'+getHoneyCount(r):''}`:'';
+    const noteText=cleanCheckNote?(queryMode==='todayBooks'||queryMode==='nextBooks'?'备注：':'')+cleanCheckNote:'';
+    const shopColor=getShopColor(r.shopCode);
+    html+=`<div class="check-card check-card-compact" style="border-left:3px solid ${shopColor}">
+      <div class="check-select-marker ${r.selected?'selected':''}" style="color:${shopColor}" onclick="toggleParse(${idx})" title="点击选择/取消选择">〔</div>
+      <div class="check-card-main check-card-main-compact check-aligned-row" onclick="insertCheckOrder(${idx},event)" title="左键插入订单；Shift+左键替换输入框并复制预约描述" style="cursor:pointer">
         <span class="check-line-field check-line-shop">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
         <span class="check-line-field check-line-sales">${escapeHtml(r.sales)}</span>
-        ${isBook?'<span class="check-card-book">BOOK</span>':''}
-        ${r.seqNo?`<span class="check-line-field check-line-seq">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}
+        <span class="check-line-field check-line-book">${isBook?'BOOK':''}</span>
+        <span class="check-line-field check-line-seq">${r.seqNo?escapeHtml(sequenceCircleNumber(r.seqNo)):''}</span>
         ${datePart}
         <span class="check-line-field check-line-time">${queryTimeLabel(r.time)}</span>
         <span class="check-line-field check-line-amount">${r.amountUnknown?'<span class="check-line-unknown">价格未知</span>':'¥'+Number(r.amount||0).toFixed(2)}</span>
-        <span class="check-line-field">${durationText}</span>
-        ${roomText?`<span class="check-line-field">${escapeHtml(roomText)}</span>`:''}${(r.phoneOrder||r.selfBooked||r.bankTransfer||r.cardPayment||r.vip||r.honey)?`<span class="check-line-field">${r.phoneOrder?'<span class=\"phone-order-icon\" title=\"接线订单\">☎</span> ':''}${r.selfBooked?'📞 ':''}${r.bankTransfer?'🏦 银行转账 ':''}${r.cardPayment?'💳 刷卡 ':''}${r.vip?'<span class=\"vip-mark\" title=\"VIP\">♛</span>':''}${getHoneyCount(r)>0?` ${honeyCountLabel(r)}`:''}</span>`:''}
-        ${tailText?`<span class="check-line-field">${escapeHtml(tailText)}</span>`:''}
-        ${cleanCheckNote?`<span class="check-line-note" title="${escapeHtml(cleanCheckNote)}">${escapeHtml(cleanCheckNote)}</span>`:''}
+        <span class="check-line-field check-line-duration">${durationText}</span>
+        <span class="check-line-field check-line-room">${escapeHtml(roomText)}</span>
+        <span class="check-line-field check-line-markers">${markerText}</span>
+        <span class="check-line-field check-line-tail">${escapeHtml(tailText)}</span>
+        <span class="check-line-note" title="${escapeHtml(noteText)}">${escapeHtml(noteText)}</span>
         <span class="check-line-status" style="color:${statusColor}">${escapeHtml(statusText)}</span>
       </div>
     </div>`;
@@ -6076,22 +6072,39 @@ function renderParseResults(){
           .replace(/^[\s,，、·]+|[\s,，、·]+$/g,'')
           .trim();
         if(cleanCheckNote) detailParts.push(escapeHtml(cleanCheckNote));
+        // v274：今天预约与近期预约使用专用紧凑格式；备注仅在有内容时追加到末尾。
+        const isAppointmentList=['todayBooks','nextBooks'].includes(r.checkMode||lastCheckQueryMeta?.mode);
+        const appointmentNote=String(r.note||'')
+          .replace(/[（(]\s*粘贴导入\s*[）)]/g,'')
+          .replace(/粘贴导入/g,'')
+          .replace(/^[\s,，、·]+|[\s,，、·]+$/g,'')
+          .trim();
         html+=`<div class="parse-item check-result-item" style="background:var(--gray-50);border-left:3px solid ${color}">
-          <div class="check ${r.selected?'done':''}" onclick="toggleParse(${i})">${r.selected?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12</polyline></svg>':''}</div>
+          <div class="check ${r.selected?'done':''}" onclick="toggleParse(${i})">${r.selected?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>':''}</div>
           <div class="parse-item-content" onclick="insertCheckOrder(${parseResults.indexOf(r)})" title="点击将此订单内容插入录入订单文本框" style="cursor:pointer">
-            <div class="check-result-main">
-              ${previewDateHtml}<span class="parse-item-shop check-field" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
-              <span class="check-field">${escapeHtml(r.sales)}</span>${bookMark}
-              ${r.seqNo?`<span class="check-field" style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}
-              <span class="check-result-status" style="color:${statusColor}">${escapeHtml(statusText)}</span>
-            </div>
-            <div class="check-result-sub">
-              ${['todayBooks','nextBooks'].includes(r.checkMode||lastCheckQueryMeta?.mode)?`<span class="check-field" style="font-weight:700;color:var(--gray-700)">${escapeHtml(String(r.date||'日期未知').replace(/^\d{4}-(\d{2})-(\d{2})$/,'$1月$2日'))}</span>`:''}
-              <span class="check-field">时间 ${formatTime(r.time)}</span>
-              <span class="check-field">· ${r.amountUnknown?'<span style="color:var(--warn);font-weight:700">价格未知</span>':'<span class="parse-item-amount">¥'+Number(r.amount||0).toFixed(2)+'</span>'}</span>
-              ${!String(r.duration||'').trim()?`<span class="check-field">· <span style="color:var(--warn);font-weight:700">时长未知</span></span>`:''}
-              ${detailParts.length?`<span class="check-field">· ${detailParts.join(' · ')}</span>`:''}
-            </div>
+            ${isAppointmentList?`
+              <div class="check-result-main">
+                <span class="parse-item-shop check-field" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
+                <span class="check-field">${escapeHtml(r.sales)}</span>${bookMark}
+                ${r.seqNo?`<span class="check-field" style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}
+                <span class="check-field" style="font-weight:800;color:${String(r.date||'')===todayStr()?'#16a34a':'#2563eb'}">${escapeHtml(String(r.date||'日期未知'))}</span>
+                <span class="check-field">${formatTime(r.time)}</span>
+                <span class="check-field">${r.amountUnknown?'<span style="color:#d97706;font-weight:800">价格未知</span>':'<span class="parse-item-amount">¥'+Number(r.amount||0).toFixed(2)+'</span>'}</span>
+                <span class="check-field">${String(r.duration||'').trim()?escapeHtml(String(r.duration))+'分钟':'<span style="color:#d97706;font-weight:800">未知时长</span>'}</span>
+                ${appointmentNote?`<span class="check-field">备注：${escapeHtml(appointmentNote)}</span>`:''}
+              </div>`:`
+              <div class="check-result-main">
+                ${previewDateHtml}<span class="parse-item-shop check-field" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
+                <span class="check-field">${escapeHtml(r.sales)}</span>${bookMark}
+                ${r.seqNo?`<span class="check-field" style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}
+                <span class="check-result-status" style="color:${statusColor}">${escapeHtml(statusText)}</span>
+              </div>
+              <div class="check-result-sub">
+                <span class="check-field">时间 ${formatTime(r.time)}</span>
+                <span class="check-field">· ${r.amountUnknown?'<span style="color:#d97706;font-weight:800">价格未知</span>':'<span class="parse-item-amount">¥'+Number(r.amount||0).toFixed(2)+'</span>'}</span>
+                ${!String(r.duration||'').trim()?`<span class="check-field">· <span style="color:#d97706;font-weight:800">时长未知</span></span>`:''}
+                ${detailParts.length?`<span class="check-field">· ${detailParts.join(' · ')}</span>`:''}
+              </div>`}
           </div>
         </div>`;
         return;
@@ -6180,6 +6193,7 @@ function batchAddParse(){
     document.getElementById('parseResult').innerHTML='';
     parseResults=[];
     showToast(removed?`已确认清除 ${removed} 条 book 预约。`:'没有需要清除的 book 预约。',removed?'success':'info');
+    if(removed) forceFloraLiveViewsRefresh();
     return;
   }
 
@@ -6195,6 +6209,7 @@ function batchAddParse(){
     saveData();renderAll();
     document.getElementById('parseTextarea').value='';document.getElementById('parseResult').innerHTML='';parseResults=[];
     showToast(count?`已确认 ${count} 笔勾选的真实订单；未勾选、预约及已取消订单未更改。`:'没有可确认的勾选订单。',count?'success':'info');
+    if(count) forceFloraLiveViewsRefresh();
     return;
   }
 
@@ -6205,6 +6220,7 @@ function batchAddParse(){
     saveData();renderTherapistTurnQueue();
     document.getElementById('parseTextarea').value='';document.getElementById('parseResult').innerHTML='';parseResults=[];
     showToast(results.join('；')||'没有执行队列调整。','success');
+    if(results.length) forceFloraLiveViewsRefresh();
     return;
   }
 
@@ -6386,6 +6402,7 @@ function batchAddParse(){
   else if(skippedCount>0) msg=`跳过 ${skippedCount} 条（时间更早，未覆盖）`;
   else msg='操作完成';
   showToast(msg,'success');
+  if(addedCount||updatedCount||deletedCount) forceFloraLiveViewsRefresh();
   
   // 剪贴板仅由 Ctrl+Enter 快捷键主动操作；这里不再复制已清空的 textarea。
 }
@@ -6988,7 +7005,7 @@ function toggleAllDetails(){
   renderTable();
 }
 
-function updateOrderStatus(id,status){ if(!status)return; const o=orders.find(x=>x.id===id); if(o){const previous=o.status;o.status=status;if(status==='canceled'&&previous!=='canceled')cancelTherapistQueueTurn(o.id);else if(previous==='canceled'&&status!=='canceled')recordTherapistQueueTurn(o);saveData();renderAll();showToast(status==='canceled'?'订单已取消，已恢复理疗师队列位置':'状态已更新');} }
+function updateOrderStatus(id,status){ if(!status)return; const o=orders.find(x=>x.id===id); if(o){const previous=o.status;o.status=status;if(status==='canceled'&&previous!=='canceled')cancelTherapistQueueTurn(o.id);else if(previous==='canceled'&&status!=='canceled')recordTherapistQueueTurn(o);saveData();renderAll();showToast(status==='canceled'?'订单已取消，已恢复理疗师队列位置':'状态已更新');if(status==='confirmed')forceFloraLiveViewsRefresh();} }
 function deleteOrder(id){ showConfirm('确定删除这条订单吗？此操作不可恢复。',()=>{cancelTherapistQueueTurn(id);orders=orders.filter(o=>o.id!==id);saveData();renderAll();showToast('已删除');
         //执行清空
                 parseTextarea.value = "";   // ⭐ 删除成功后清空 parseTextarea.textarea
@@ -8294,18 +8311,44 @@ if(parseTA) parseTA.addEventListener("input", () => applyShortcutReplace(parseTA
 
 // --=== 快捷输入功能 end ===--
 
-// v230：后台实时刷新只更新业务视图，绝不主动改变 window.scrollX / window.scrollY。
-// 此前的定时滚动校正会导致 check 长列表持续向下跳动；本版不再执行任何自动滚动。
+// v275：轨道、队列及图形统一由单一调度器刷新；自动刷新间隔10秒。
+// v276：Check结果统一完整日期、固定列布局和每页30条。
+// 不主动改变 window.scrollX / window.scrollY；刷新过程串行执行，避免定时刷新与强制刷新重叠。
 function refreshFloraLiveViews(){
-  renderTimeline4();
-  renderTimelineFuture();
-  renderTherapistTurnQueue();
+  if(window.__floraLiveViewsRefreshing)return false;
+  window.__floraLiveViewsRefreshing=true;
+  try{
+    renderTimeline4();
+    renderTimelineFuture();
+    renderTherapistTurnQueue();
+    renderChart();
+    renderHourChart();
+    renderSourceBreakdown();
+    return true;
+  }catch(err){
+    console.error('Flora实时视图刷新失败：',err);
+    return false;
+  }finally{
+    window.__floraLiveViewsRefreshing=false;
+  }
 }
 
-// 时间轴与理疗师队列维持每2秒实时刷新；合并为同一轮更新，避免两个定时器分别改变页面布局。
-if(!window.__floraLiveViewsRefresh){
-  window.__floraLiveViewsRefresh=setInterval(refreshFloraLiveViews,2000);
+function scheduleFloraLiveViewsRefresh(delay=10000){
+  if(window.__floraLiveViewsRefresh)clearTimeout(window.__floraLiveViewsRefresh);
+  window.__floraLiveViewsRefresh=setTimeout(()=>{
+    refreshFloraLiveViews();
+    scheduleFloraLiveViewsRefresh(10000);
+  },delay);
 }
+
+// 确认操作完成后调用：取消原定时任务、立即刷新全部实时视图，再从此刻重新计时10秒。
+function forceFloraLiveViewsRefresh(){
+  if(window.__floraLiveViewsRefresh){clearTimeout(window.__floraLiveViewsRefresh);window.__floraLiveViewsRefresh=null;}
+  refreshFloraLiveViews();
+  scheduleFloraLiveViewsRefresh(10000);
+}
+
+if(!window.__floraLiveViewsRefresh)scheduleFloraLiveViewsRefresh(10000);
 
 </script>
 
