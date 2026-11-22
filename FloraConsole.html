@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v286.html | 补录与删除订单后按有效历史重算理疗师队列 -->
+<!-- VERSION: FloraConsole_v289.html | Out状态取消需比较订单与Out操作的完整日期时间 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v286">
+<meta name="flora-console-version" content="v289">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -784,7 +784,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v286</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v289</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -1648,10 +1648,16 @@ function completeManualQueueMoveForOrder(order,isNewActualOrder=false){
   const outList=getTherapistQueueOutList(shopCode,false);
   const outIndex=outList.findIndex(item=>item&&item.key===key);
   if(outIndex>=0){
-    outList.splice(outIndex,1);
-    changed=true;
-    // 暂离期间真正新增/重新接回的实际订单会召回理疗师。
-    order.queueForceTurn=true;
+    const outRecord=outList[outIndex];
+    // v289：只有订单实际发生时间晚于 Out 操作时间，才算 Out 期间重新接单并取消倒计时。
+    // 必须比较完整年月日时分；补录前一天的历史订单不能解除今天的 Out。
+    const orderAt=queueOrderDateTime(order)?.getTime();
+    const outAt=Date.parse(outRecord.outAt||'');
+    if(Number.isFinite(orderAt)&&Number.isFinite(outAt)&&orderAt>outAt){
+      outList.splice(outIndex,1);
+      changed=true;
+      order.queueForceTurn=true;
+    }
   }
   // 只有“新录入/取消后重新录入”的实际订单，且订单时间晚于人工 set 时刻，
   // 才解除人工排序。修改旧订单、补录更早的历史订单均不清除人工位置。
@@ -4446,6 +4452,33 @@ function parseMessages(){
       return prefix;
     });
 
+    // v287：无序号、金额/时长/备注均为空，四位尾号 + 最后时间。
+    // 例如 eva,,,,,9695,1700：五个连续分隔符明确表示序号、金额、时长、备注/房间字段留空；
+    // 9695 固定为客人尾号，绝不能被通用解析器当成 9695 分钟。序号自动分配，金额/时长未知。
+    // 只有最后时间晚于本次解析时刻时才自动添加 book。
+    const noSeqBlankAllFieldsTailTimeRegex=/(^|[\s;])([a-zA-Z\u4e00-\u9fa5][\w\u4e00-\u9fa5（）@〔〕+\-\[\]]*)[,/]\s*[,/]\s*[,/]\s*[,/]\s*[,/]\s*(\d{4})[,/]\s*(\d{1,4})(?=\s|$|[;，。,.!?！？])/g;
+    noSeqBlankAllFieldsTailTimeRegex.lastIndex=0;
+    text=text.replace(noSeqBlankAllFieldsTailTimeRegex,(whole,prefix,sales,tailDigits,rawTime)=>{
+      const timeInfo=resolveOrderTimeInfo(String(rawTime||''),parseBaseMinutes);
+      if(!timeInfo.time) return whole;
+      const targetDate=dateWithOffset(parsedDate||todayStr(),timeInfo.dayOffset);
+      const actualTimeMinutes=parseInt(timeInfo.time.slice(0,2),10)*60+parseInt(timeInfo.time.slice(2,4),10);
+      const isFutureDate=targetDate>todayStr();
+      const isFutureTimeToday=targetDate===todayStr() && timeInfo.dayOffset===0 && actualTimeMinutes>parseBaseMinutes;
+      const orderSales=(isFutureDate||isFutureTimeToday) && !/book/i.test(sales)?sales+'book':sales;
+      const seqNo=findUnusedSeqNo(currentShopCode,orderSales,targetDate);
+      const guestTail=normalizeGuestTail(tailDigits);
+      parseResults.push({
+        id:uid(),raw:`${orderSales},${seqNo},,,,${guestTail},${rawTime}`,
+        shopCode:currentShopCode,shopName:currentShopName,sales:orderSales,seqNo,
+        amount:0,amountUnknown:true,time:timeInfo.time,duration:'',room:'',guestTail,note:'',
+        extra:[`客人尾号${guestTail}`,'价格未知','时长未知'].join(' · '),
+        dayOffset:timeInfo.dayOffset,autoCompleted:true,appointmentDisplayFormat:'blankFieldsTailTime',
+        matched:true,selected:true
+      });
+      return prefix;
+    });
+
     // v260：无序号、金额/时长均留空，备注 + 四位尾号 + 最后时间。
     // 例如 truda,,,,200要做一个小时vip,5819,1530。
     // 备注中的数字/时长/VIP文字全部作为备注原文，不推断金额、时长或标签。
@@ -5677,7 +5710,8 @@ function shiftClickDescription(o){
         if(!noteText || /^v(ip)?$/i.test(noteText)) noteText='vip';
         else if(!/(^|[,，\s])vip($|[,，\s])/i.test(noteText)) noteText+='，vip';
       }
-      const parts=[`${shopLabel} ${displayTherapistName}广告预约`];
+      // v288：Shift+Click预约描述在店铺名称两侧增加星星，增强视觉辨识度。
+      const parts=[`🌟${shopLabel}🌟 ${displayTherapistName}广告预约`];
       if(guestTail) parts.push(`尾号${guestTail}`);
       parts.push(amountText,durationText);
       if(dateText) parts.push(dateText);
