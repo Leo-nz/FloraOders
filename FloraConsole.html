@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v277.html | Check结果统一日期、列对齐与30条分页；预约按时间正序 -->
+<!-- VERSION: FloraConsole_v286.html | 补录与删除订单后按有效历史重算理疗师队列 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v276">
+<meta name="flora-console-version" content="v286">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -104,10 +104,25 @@ input,select,textarea{font-family:inherit;font-size:16px}
 /* check 查询结果：两行清晰布局，避免店铺/理疗师/金额/状态等挤在同一行 */
 .parse-item.check-result-item{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:start;gap:8px;padding:9px 12px;margin-bottom:6px;}
 .check-result-main{min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.45;}
+/* v284：check姓名列适度收窄，为备注留出空间；预约备注仍单行省略。 */
+.check-result-main.check-appointment-row{display:grid;grid-template-columns:100px 68px 42px 34px 92px 48px 82px 82px minmax(120px,1fr);column-gap:7px;align-items:center;min-width:0;overflow:hidden;white-space:nowrap;}
+.check-appointment-row .check-field{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.check-appointment-row .check-appointment-book{font-weight:800;color:var(--primary);}
+.check-appointment-row .check-appointment-note{color:var(--gray-500);font-size:11px;}
 .check-result-main .check-field{white-space:nowrap;}
+/* v284：所有Check结果统一压缩理疗师姓名列，避免长姓名挤占备注空间。 */
+.check-result-main .check-therapist-name{display:inline-block;flex:0 1 68px;width:68px;min-width:0;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.check-result-main.check-appointment-row{grid-template-columns:100px 68px 42px 34px 92px 48px 82px 82px minmax(120px,1fr);}
+.check-appointment-row .check-appointment-note{min-width:0;}
 .check-result-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;font-size:11px;color:var(--gray-500);line-height:1.45;}
 .check-result-sub .check-field{white-space:nowrap;}
+.check-result-sub .check-result-note{flex:1 1 180px;min-width:70px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .check-result-status{margin-left:auto;white-space:nowrap;font-weight:600;font-size:11px;}
+
+/* v285：仅理疗室Check结果进一步压缩横向占用，给备注留出空间。 */
+.check-room-result-item .check-room-seq{position:relative;left:-90px;margin-right:-90px;}
+.check-room-result-item .check-result-status{position:relative;left:-30px;}
+.check-room-result-item .check-result-sub{position:relative;left:-30px;width:calc(100% + 30px);}
 .parse-item-shop{font-weight:600;color:var(--primary)}
 .parse-item-amount{color:var(--danger);font-weight:600}
 .chart-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -444,7 +459,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .check-panel-list-compact .check-card-compact{display:flex;align-items:center;gap:7px;padding:5px 9px;min-height:31px;min-width:1280px;border-bottom:1px solid var(--gray-100);}
 .check-card-compact .check-select-marker{width:18px;min-width:18px;height:22px;font-size:17px;line-height:1;}
 .check-card-main-compact{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;width:100%;overflow:hidden;white-space:nowrap;font-size:11px;line-height:1.3;color:var(--gray-600);}
-.check-aligned-row{display:grid;grid-template-columns:100px 112px 42px 34px 92px 48px 82px 82px 48px 64px 76px minmax(110px,1fr) 54px;column-gap:7px;align-items:center;}
+.check-aligned-row{display:grid;grid-template-columns:100px 84px 42px 34px 92px 48px 82px 82px 48px 64px 76px minmax(138px,1fr) 54px;column-gap:7px;align-items:center;}
 .check-aligned-row .check-line-field,.check-aligned-row .check-line-note{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .check-aligned-row .check-line-book{font-weight:800;color:var(--primary);}
 .check-line-field{flex:0 0 auto;white-space:nowrap;}
@@ -769,7 +784,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v277</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v286</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -1749,8 +1764,8 @@ function getTherapistQueueSnapshot(now=new Date()){
       if(!a.lastTurnAt)return -1;if(!b.lastTurnAt)return 1;
       return a.lastTurnAt-b.lastTurnAt||a.name.localeCompare(b.name,'zh-CN');
     });
-    // v259：队列只使用一套排序机制。旧版位置/锚点数据仅在首次升级时转换成虚拟时间，
-    // 转换完成后 position/afterKey/atStart 永久退出排序流程。
+    // v259：队列只使用一套排序机制。旧版位置/锚点数据仅在首次升级时转换；
+    // v279：缺少真实 set 时间的迁移记录不再作为人工排序依据。
     const manualMoves=getTherapistQueueManualMoves(shopCode,false);
     manualMoves.forEach(move=>{
       if(!move||!move.key||activePeople.some(item=>item.key===move.key))return;
@@ -1777,17 +1792,15 @@ function getTherapistQueueSnapshot(now=new Date()){
       });
       saveData();
     }
-    const virtualByKey=new Map(manualMoves.filter(move=>move&&move.key&&Number.isFinite(Number(move.virtualAt))).map(move=>[move.key,Number(move.virtualAt)]));
-    // v259：兼容 v258 已保存的人工排序记录；首次升级时以当前时刻作为其人工操作时间，
-    // 之后的历史补录不清除该位置，只有更晚的新订单才会解除。
-    let migratedManualAt=false;
-    manualMoves.forEach(move=>{
-      if(!move||!move.key||!Number.isFinite(Number(move.virtualAt))||Number.isFinite(Date.parse(move.manualAt||'')))return;
-      const priorMoveAt=Date.parse(move.movedAt||'');
-      move.manualAt=Number.isFinite(priorMoveAt)?new Date(priorMoveAt).toISOString():new Date().toISOString();
-      migratedManualAt=true;
-    });
-    if(migratedManualAt)saveData();
+    // Flora Console v279：修复补录历史订单时，缺少真实 set 时间的旧虚拟排序记录锁住队列的问题。
+    // v279：只有确实发生过人工 set、且同时保留真实操作时间(movedAt)的记录，
+    // 才能覆盖真实订单时间。旧版迁移时若缺少 movedAt，曾把当前时间伪造成 manualAt，
+    // 这会让从未 set 过的理疗师被虚拟排序锁在原位置；此类记录一律不再参与排序。
+    const virtualByKey=new Map(manualMoves
+      .filter(move=>move&&move.key&&Number.isFinite(Number(move.virtualAt))
+        &&Number.isFinite(Date.parse(move.manualAt||''))
+        &&Number.isFinite(Date.parse(move.movedAt||'')))
+      .map(move=>[move.key,Number(move.virtualAt)]));
     activePeople.forEach(item=>{const stamp=virtualByKey.get(item.key);if(Number.isFinite(stamp))item.queueSortAt=stamp;});
     if(virtualByKey.size)activePeople.sort((a,b)=>{
       const ta=Number.isFinite(a.queueSortAt)?a.queueSortAt:(a.lastTurnAt instanceof Date?a.lastTurnAt.getTime():-Infinity);
@@ -1823,6 +1836,12 @@ function getTherapistQueueShop(shopCode){
 }
 // 兼容旧调用点：队列由订单实时计算，录入/取消/删除不再写入独立事件。
 function rebuildTherapistQueue(shopCode){return getTherapistQueueShop(shopCode).map(x=>x.name);}
+// v286：订单新增、补录、更新或删除后，统一从当前仍有效的历史订单重算队列。
+// 这样补录按真实发生时间插入；删除后自动回退到该理疗师剩余的最近有效接单时间。
+// book预约、已取消/已删除订单不参与；真实人工set仍由manualAt规则保留优先级。
+function reconcileTherapistQueueAfterOrderMutation(){
+  return getTherapistQueueSnapshot(new Date());
+}
 function recordTherapistQueueTurn(order){return !!order&&isQueueActualOrder(order)&&Number(order.amount)>50;}
 function cancelTherapistQueueTurn(orderId){return false;}
 function toggleTherapistQueuePanel(contentId){
@@ -1907,9 +1926,9 @@ function renderTherapistQueueShopPanel(code,list,now=new Date(),compact=false){
   return compact?content:`<section class="turn-queue-shop-panel"><h4>${escapeHtml(shopName)} · ${active.length}位在队列${out.length?` · ${out.length}位离开`:''}</h4><div class="turn-queue-strip">${content||'<div class="turn-queue-empty">最近3天没有理疗师订单</div>'}</div></section>`;
 }
 
-function renderTherapistTurnQueue(){
+function renderTherapistTurnQueue(queueSnapshot=null){
   const wrap=document.getElementById('therapistTurnQueueContent');if(!wrap)return;
-  const all=getTherapistQueueSnapshot();
+  const all=queueSnapshot instanceof Map?queueSnapshot:getTherapistQueueSnapshot();
   const primary=all.get('4')||[];
   const now=new Date();
   const primaryActive=primary.filter(item=>!item.isOut);
@@ -1955,10 +1974,10 @@ function setTherapistStatsView(view){
 // 全局渲染
 // ============================================================
 // v226：不再后台定时全量重绘队列；数据更新或进入对应页面时正常刷新。
-function renderAll(){
+function renderAll(queueSnapshot=null){
   renderShopSelects();
   renderToday();
-  renderTherapistTurnQueue();
+  renderTherapistTurnQueue(queueSnapshot);
   renderStats();
   renderChart();
   renderHourChart();
@@ -3207,7 +3226,7 @@ function handleCheckCommand(text){
   checkResultPage=0;
   if(!/^#(?:\s|$)/.test(keyword)){sequenceGapReport=null;sequenceGapPage=0;}
   if(!keyword){
-    showToast('用法：check（默认 09:30～21:30）/ check book / check b|y|c|v|j|h|jvbc / check 理疗师 / check 店铺编号 / check 日期 理疗师','error');
+    showToast('用法：check（默认 09:30～21:30）/ check book / check b|y|c|v|j|h|jvbc / check 理疗师 / check 店铺编号 / check room 3（当天3号理疗室，最新在前） / check 日期 理疗师','error');
     return true;
   }
 
@@ -3259,6 +3278,33 @@ function handleCheckCommand(text){
     if(d.getFullYear()!==year || d.getMonth()!==month-1 || d.getDate()!==day) return null;
     return formatDate(d);
   };
+
+  // v284：check room N 查询当天指定理疗室的使用记录，按时间逆序排列。
+  const roomQuery=keyword.match(/^room\s+(\d+)$/i);
+  if(roomQuery){
+    const requestedRoom=String(Number(roomQuery[1]));
+    const roomDate=todayStr();
+    const roomOrders=orders.filter(o=>{
+      const storedRoom=String(o.room??'').trim().replace(/j$/i,'');
+      return String(o.date||'')===roomDate && storedRoom===requestedRoom && o.status!=='canceled';
+    });
+    roomOrders.sort((a,b)=>{
+      const shopCompare=String(a.shopCode??'').trim().localeCompare(String(b.shopCode??'').trim(),'zh-CN',{numeric:true,sensitivity:'base'});
+      if(shopCompare!==0) return shopCompare;
+      const ta=String(a.time||'0000').replace(':','').padStart(4,'0');
+      const tb=String(b.time||'0000').replace(':','').padStart(4,'0');
+      if(ta!==tb) return tb.localeCompare(ta);
+      return Number(b.seqNo||0)-Number(a.seqNo||0);
+    });
+    lastCheckQueryMeta={mode:'room',targetDate:roomDate,room:requestedRoom,keyword,queryLabel:`${roomDate} · ${requestedRoom}号理疗室`};
+    parsedDate=roomDate;
+    parseResults=roomOrders.map(o=>({...o,id:uid(),raw:o.raw||'',matched:true,selected:true,action:'check',checkMode:'room',checkQueryDate:roomDate,checkQueryRoom:requestedRoom}));
+    const parseWrap=document.getElementById('parseResult'); if(parseWrap) parseWrap.innerHTML='';
+    document.getElementById('checkResult').classList.remove('hidden');
+    renderCheckResults();
+    if(!parseResults.length) showToast(`今天${requestedRoom}号理疗室没有使用记录`,'error');
+    return true;
+  }
 
   // check y / b / c / v / j [日期 [结束日期]] [店铺编号] [理疗师]：分别查询自约、银行转账、刷卡、VIP 与接线订单；by 同时匹配银行转账与自约。
   if(/^(?:by|[ybvcjh]+)(?:\s|$)/i.test(keyword)){
@@ -3931,11 +3977,13 @@ function applySetQueueCommand(r){
     return afterPosition===0?`${name} 已移动到队首（虚拟秒级队列时间已更新）。`:`${name} 已移动到 ${anchorBeforeMove.name} 后面（虚拟秒级队列时间已更新）。`;
   }else{
     const currentActive=getTherapistQueueShop(shopCode).filter(item=>!item.isOut);
-    const anchor=afterPosition>0&&afterPosition<=currentActive.length?currentActive[afterPosition-1]:null;
-    if(anchor&&anchor.key===key)return `${name} 已按指令移动到目前第 ${afterPosition} 位理疗师之后；队列顺序保持不变。`;
     const originalOrder=currentActive.map(item=>item.key).join('|');
+    // v278：先从当前队列移除目标人员，再按剩余队列计算锚点。
+    // 数字 N 的含义是“排在移除目标后的第 N 位人员之后”；0 表示排在第零位之后，即队首。
+    // 这样从 Break 召回时，即使目标人员仍保留在底层历史队列原位置，也不会把自己误当成第 N 位锚点。
     const existingIndex=currentActive.findIndex(item=>item.key===key);
     const moving=existingIndex>=0?currentActive.splice(existingIndex,1)[0]:{key,name,shopCode,isManualPlaceholder:true,lastTurnAt:null};
+    const anchor=afterPosition>0&&afterPosition<=currentActive.length?currentActive[afterPosition-1]:null;
     let insertIndex=0;
     if(afterPosition>0){
       if(anchor){const anchorIndex=currentActive.findIndex(item=>item.key===anchor.key);insertIndex=anchorIndex+1;}
@@ -4861,8 +4909,11 @@ function parseMessages(){
       time=timeInfo.time;
       const dayOffset=timeInfo.dayOffset;
 
-      // 最后一项若是4位HHMM且晚于本次解析时刻，自动把普通理疗师标记为 book 预约。
+      // 最后一项若是1-2位分钟偏移且大于0，表示从解析时刻起的未来到达，必须自动标记为 book。
+      // 四位HHMM仍按未来日期/未来时刻判断；完整固定字段的既有优先级不受影响。
       const rawTimeIsFourDigit=/^\d{4}$/.test(rawTime);
+      const rawTimeIsRelativeMinute=/^\d{1,2}$/.test(rawTime);
+      const isPositiveRelativeMinute=rawTimeIsRelativeMinute && Number(rawTime)>0;
       const actualTimeMinutes=time ? (parseInt(time.slice(0,2))*60+parseInt(time.slice(2))) : -1;
       // 指定了未来日期时，该日期内的4位时间直接视为预约；今天则继续按当前时刻判断。
       const targetDate=parsedDate || todayStr();
@@ -4870,7 +4921,10 @@ function parseMessages(){
       const isFutureDate=targetDate>todayDate;
       const isFutureTimeToday=(targetDate===todayDate && dayOffset===0 && actualTimeMinutes>parseBaseMinutes);
       const hasCompleteFixedFields = dataParts.length===5 && dataParts.every(part=>String(part||'').trim()!=='');
-      const autoBookFuture=!hasCompleteFixedFields && rawTimeIsFourDigit && (isFutureDate || isFutureTimeToday) && !/book/i.test(sales);
+      const autoBookFuture=!/book/i.test(sales) && (
+        isPositiveRelativeMinute ||
+        (!hasCompleteFixedFields && rawTimeIsFourDigit && (isFutureDate || isFutureTimeToday))
+      );
       if(autoBookFuture) sales=sales+'book';
       const isBookOrder=/book/i.test(sales);
 
@@ -5287,8 +5341,10 @@ document.addEventListener('keydown', function(e){
 // ⭐ Ctrl + A：显示输入界面
   if(e.ctrlKey && e.key === 'a'){
     e.preventDefault();
-    switchTab('add');          // ← 打开输入框
-      }
+    const activeTab=document.querySelector('.tab.active')?.dataset.tab||'';
+    switchTab('add');          // 打开主录入界面
+    if(activeTab && activeTab!=='add') forceFloraLiveViewsRefresh();
+  }
   
   // ⭐ Ctrl + T：只解析消息，不读取或写入剪贴板
   if(e.ctrlKey && e.key.toLowerCase() === 't'){
@@ -5685,6 +5741,24 @@ function renderCheckResults(){
       if(ta!==tb)return ta.localeCompare(tb);
       return Number(a.seqNo||0)-Number(b.seqNo||0);
     }
+    // v284：理疗室记录先按店铺分组，再在每个店铺内按时间逆序。
+    if((a.checkMode||lastCheckQueryMeta?.mode)==='room' || (b.checkMode||lastCheckQueryMeta?.mode)==='room'){
+      const shopA=String(a.shopCode??'').trim(), shopB=String(b.shopCode??'').trim();
+      const shopCompare=shopA.localeCompare(shopB,'zh-CN',{numeric:true,sensitivity:'base'});
+      if(shopCompare!==0) return shopCompare;
+      const timeKey=v=>{
+        const raw=String(v??'').trim();
+        if(/^\d{1,2}:\d{2}$/.test(raw)){
+          const [h,m]=raw.split(':');
+          return String(Number(h)).padStart(2,'0')+m;
+        }
+        const digits=raw.replace(/\D/g,'');
+        return /^\d{1,4}$/.test(digits)?digits.padStart(4,'0'):'0000';
+      };
+      const ta=timeKey(a.time), tb=timeKey(b.time);
+      if(ta!==tb) return tb.localeCompare(ta);
+      return (Number(b.seqNo)||0)-(Number(a.seqNo)||0);
+    }
     if(da!==db) return db.localeCompare(da);
     const nameKey=v=>String(v||'').replace(/book/ig,'').replace(/\s+/g,'').trim().toLocaleLowerCase()||'未知理疗师';
     if(isGroupedMarkerQuery){
@@ -5706,7 +5780,7 @@ function renderCheckResults(){
     return sb-sa;
   });
   const queryMode=checkRows.length ? (checkRows[0].checkMode||'') : (lastCheckQueryMeta?.mode||'');
-  const modeText={date:'日期',book:'预约',books:'全部日期预约',todayBooks:'今天预约',nextBooks:'接下来预约',bookDate:'指定日期预约',therapist:'理疗师',shop:'店铺',therapistDate:'日期 + 理疗师',therapistDateRange:'日期范围 + 理疗师',markerCombination:'标签组合'}[queryMode]||'查询';
+  const modeText={date:'日期',book:'预约',books:'全部日期预约',todayBooks:'今天预约',nextBooks:'接下来预约',bookDate:'指定日期预约',therapist:'理疗师',shop:'店铺',room:'理疗室',therapistDate:'日期 + 理疗师',therapistDateRange:'日期范围 + 理疗师',markerCombination:'标签组合'}[queryMode]||'查询';
 
   let queryValue='';
   if(checkRows.length){
@@ -5717,6 +5791,7 @@ function renderCheckResults(){
     else if(queryMode==='nextBooks') queryValue='接下来预约单';
     else if(queryMode==='bookDate') queryValue=(checkRows[0].checkQueryDate||checkRows[0].date||parsedDate||'')+' 预约';
     else if(queryMode==='shop') queryValue=(checkRows[0].shopCode||'')+'号店';
+    else if(queryMode==='room') queryValue=`${lastCheckQueryMeta?.room||checkRows[0].checkQueryRoom||checkRows[0].room||''}号理疗室`;
     else if(queryMode==='therapist'){
       const raw=String(checkRows[0].sales||'').replace(/\s+/g,'').replace(/book/ig,'');
       queryValue=raw||'理疗师';
@@ -5746,6 +5821,7 @@ function renderCheckResults(){
     else if(queryMode==='date') queryValue=lastCheckQueryMeta.targetDate||'';
     else if(queryMode==='therapist') queryValue=lastCheckQueryMeta.keyword||'';
     else if(queryMode==='shop') queryValue=`${lastCheckQueryMeta.keyword||''}号店`;
+    else if(queryMode==='room') queryValue=`${lastCheckQueryMeta.room||''}号理疗室`;
   }
 
   // 金额合计只累加有明确金额的订单；未知价格不计入金额，但订单仍计数。
@@ -5757,6 +5833,7 @@ function renderCheckResults(){
   },0);
 
   const queryLabel = queryMode==='therapist' ? `理疗师：${queryValue}`
+    : queryMode==='room' ? `理疗室：${queryValue}`
     : queryMode==='shop' ? `店铺：${queryValue}`
     : queryMode==='date' ? `日期：${queryValue}`
     : (queryMode==='therapistDate' || queryMode==='therapistDateRange') ? `日期/理疗师：${queryValue}`
@@ -6071,7 +6148,7 @@ function renderParseResults(){
           .replace(/粘贴导入/g,'')
           .replace(/^[\s,，、·]+|[\s,，、·]+$/g,'')
           .trim();
-        if(cleanCheckNote) detailParts.push(escapeHtml(cleanCheckNote));
+        // v284：备注独立占用可伸缩空间，不再与尾号/房间挤在同一字段中。
         // v274：今天预约与近期预约使用专用紧凑格式；备注仅在有内容时追加到末尾。
         const isAppointmentList=['todayBooks','nextBooks'].includes(r.checkMode||lastCheckQueryMeta?.mode);
         const appointmentNote=String(r.note||'')
@@ -6079,24 +6156,26 @@ function renderParseResults(){
           .replace(/粘贴导入/g,'')
           .replace(/^[\s,，、·]+|[\s,，、·]+$/g,'')
           .trim();
-        html+=`<div class="parse-item check-result-item" style="background:var(--gray-50);border-left:3px solid ${color}">
+        const isRoomCheck=(r.checkMode||lastCheckQueryMeta?.mode)==='room';
+        html+=`<div class="parse-item check-result-item${isRoomCheck?' check-room-result-item':''}" style="background:var(--gray-50);border-left:3px solid ${color}">
           <div class="check ${r.selected?'done':''}" onclick="toggleParse(${i})">${r.selected?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>':''}</div>
           <div class="parse-item-content" onclick="insertCheckOrder(${parseResults.indexOf(r)})" title="点击将此订单内容插入录入订单文本框" style="cursor:pointer">
             ${isAppointmentList?`
-              <div class="check-result-main">
-                <span class="parse-item-shop check-field" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
-                <span class="check-field">${escapeHtml(r.sales)}</span>${bookMark}
-                ${r.seqNo?`<span class="check-field" style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}
+              <div class="check-result-main check-appointment-row">
+                <span class="parse-item-shop check-field" style="color:${color}" title="${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
+                <span class="check-field" title="${escapeHtml(r.sales)}">${escapeHtml(r.sales)}</span>
+                <span class="check-field check-appointment-book">${isBook?'BOOK':''}</span>
+                <span class="check-field" style="color:var(--gray-400);font-size:11px">${r.seqNo?escapeHtml(sequenceCircleNumber(r.seqNo)):''}</span>
                 <span class="check-field" style="font-weight:800;color:${String(r.date||'')===todayStr()?'#16a34a':'#2563eb'}">${escapeHtml(String(r.date||'日期未知'))}</span>
                 <span class="check-field">${formatTime(r.time)}</span>
                 <span class="check-field">${r.amountUnknown?'<span style="color:#d97706;font-weight:800">价格未知</span>':'<span class="parse-item-amount">¥'+Number(r.amount||0).toFixed(2)+'</span>'}</span>
                 <span class="check-field">${String(r.duration||'').trim()?escapeHtml(String(r.duration))+'分钟':'<span style="color:#d97706;font-weight:800">未知时长</span>'}</span>
-                ${appointmentNote?`<span class="check-field">备注：${escapeHtml(appointmentNote)}</span>`:''}
+                <span class="check-field check-appointment-note" title="${escapeHtml(appointmentNote)}">${appointmentNote?'备注：'+escapeHtml(appointmentNote):''}</span>
               </div>`:`
               <div class="check-result-main">
                 ${previewDateHtml}<span class="parse-item-shop check-field" style="color:${color}">${escapeHtml(r.shopCode)}→${escapeHtml(r.shopName)}</span>
-                <span class="check-field">${escapeHtml(r.sales)}</span>${bookMark}
-                ${r.seqNo?`<span class="check-field" style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}
+                <span class="check-field check-therapist-name" title="${escapeHtml(String(r.sales||'').replace(/book/ig,''))}">${escapeHtml(r.sales)}</span>${bookMark}
+                ${r.seqNo?`<span class="check-field${isRoomCheck?' check-room-seq':''}" style="color:var(--gray-400);font-size:11px">${escapeHtml(sequenceCircleNumber(r.seqNo))}</span>`:''}
                 <span class="check-result-status" style="color:${statusColor}">${escapeHtml(statusText)}</span>
               </div>
               <div class="check-result-sub">
@@ -6104,6 +6183,7 @@ function renderParseResults(){
                 <span class="check-field">· ${r.amountUnknown?'<span style="color:#d97706;font-weight:800">价格未知</span>':'<span class="parse-item-amount">¥'+Number(r.amount||0).toFixed(2)+'</span>'}</span>
                 ${!String(r.duration||'').trim()?`<span class="check-field">· <span style="color:#d97706;font-weight:800">时长未知</span></span>`:''}
                 ${detailParts.length?`<span class="check-field">· ${detailParts.join(' · ')}</span>`:''}
+                ${cleanCheckNote?`<span class="check-field check-result-note" title="${escapeHtml(cleanCheckNote)}">· 备注 ${escapeHtml(cleanCheckNote)}</span>`:''}
               </div>`}
           </div>
         </div>`;
@@ -6382,10 +6462,11 @@ function batchAddParse(){
     }
   });
   saveData();
+  const queueSnapshotAfterOrderMutation=reconcileTherapistQueueAfterOrderMutation();
   document.getElementById('parseTextarea').value='';
   document.getElementById('parseResult').innerHTML='';
   parseResults=[];
-  renderAll();
+  renderAll(queueSnapshotAfterOrderMutation);
   let msg;
   const hasRangeDelete=selected.some(r=>r.action==='deleteRange');
   if(updateMissingCount>0 && updatedCount===0 && addedCount===0) msg=`未找到 ${updateMissingCount} 条指定序号的原订单，未新增订单`;
@@ -8348,7 +8429,16 @@ function forceFloraLiveViewsRefresh(){
   scheduleFloraLiveViewsRefresh(10000);
 }
 
-if(!window.__floraLiveViewsRefresh)scheduleFloraLiveViewsRefresh(10000);
+// v280：首次加载先立即渲染轨道、队列和图形；浏览器完成首帧显示后才启动10秒刷新倒计时。
+if(!window.__floraLiveViewsRefresh){
+  refreshFloraLiveViews();
+  const startInitialRefreshTimer=()=>scheduleFloraLiveViewsRefresh(10000);
+  if(typeof requestAnimationFrame==='function'){
+    requestAnimationFrame(()=>requestAnimationFrame(startInitialRefreshTimer));
+  }else{
+    setTimeout(startInitialRefreshTimer,0);
+  }
+}
 
 </script>
 
