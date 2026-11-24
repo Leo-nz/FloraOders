@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v289.html | Out状态取消需比较订单与Out操作的完整日期时间 -->
+<!-- VERSION: FloraConsole_v290.html | Out状态取消需比较订单与Out操作的完整日期时间 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v289">
+<meta name="flora-console-version" content="v290">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -784,7 +784,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v289</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v290</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -1649,7 +1649,7 @@ function completeManualQueueMoveForOrder(order,isNewActualOrder=false){
   const outIndex=outList.findIndex(item=>item&&item.key===key);
   if(outIndex>=0){
     const outRecord=outList[outIndex];
-    // v289：只有订单实际发生时间晚于 Out 操作时间，才算 Out 期间重新接单并取消倒计时。
+    // v290：只有订单实际发生时间晚于 Out 操作时间，才算 Out 期间重新接单并取消倒计时。
     // 必须比较完整年月日时分；补录前一天的历史订单不能解除今天的 Out。
     const orderAt=queueOrderDateTime(order)?.getTime();
     const outAt=Date.parse(outRecord.outAt||'');
@@ -3699,21 +3699,28 @@ function convertWechatLogToOrders(inputText){
     }
     // v268沿用：微信自然语言钟点预约，支持“9点”“9点半”“9点半左右约客到”，并兼容中文数字与早/中/晚时间词。
     // 未明确上午/下午时，结合消息发送时刻推断最近的未来钟点；例如20:36收到“9点半”=21:30。
-    const explicitClock=message.match(/(?:预约\s*)?(早上|清晨|上午|中午|下午|晚上|夜里)?\s*([0-9]{1,2}|[一二两三四五六七八九十]+)\s*(?:[:：]\s*([0-9]{2})|点\s*(半|[0-9]{1,2})?)\s*(?:左右)?\s*(?:预约|有约|有预约|约)?/);
+    const explicitClock=message.match(/(?:预约\s*)?(明天|后天|今天)?\s*(早上|清晨|上午|中午|下午|晚上|夜里)?\s*([0-9]{1,2}|[一二两三四五六七八九十]+)\s*(?:[:：]\s*([0-9]{2})|点\s*(半|[0-9]{1,2})?)\s*(?:左右)?\s*(?:预约|有约|有预约|约)?/);
     if(explicitClock && /预约|有约|有预约|约/.test(message)){
-      const period=explicitClock[1]||'';
-      const hourToken=explicitClock[2];
+      const relativeDay=explicitClock[1]||'';
+      const period=explicitClock[2]||'';
+      const hourToken=explicitClock[3];
       const chineseHours={'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12};
       let hh=/^\d+$/.test(hourToken)?Number(hourToken):(chineseHours[hourToken]||0);
-      let mm=explicitClock[3]!==undefined?Number(explicitClock[3]):(explicitClock[4]==='半'?30:Number(explicitClock[4]||0));
+      let mm=explicitClock[4]!==undefined?Number(explicitClock[4]):(explicitClock[5]==='半'?30:Number(explicitClock[5]||0));
       const messageHour=hour;
       if(period==='下午'||period==='晚上'||period==='夜里') { if(hh<12) hh+=12; }
       else if(period==='上午'||period==='早上'||period==='清晨') { if(hh===12) hh=0; }
       else if(period==='中午') { if(hh<11) hh+=12; }
       else if(hh<12 && messageHour>=12 && (hh<messageHour || (hh===messageHour && mm<=minute))) hh+=12;
       if(hh>=0 && hh<24 && mm>=0 && mm<60){
-        if(!firstDate) firstDate=date;
+        // v290：相对日期以该条微信消息时间戳为基准，而不是解析时的系统日期。
+        const dayOffset=relativeDay==='明天'?1:(relativeDay==='后天'?2:0);
+        const appointmentDate=dateWithOffset(date,dayOffset);
+        if(!firstDate) firstDate=appointmentDate;
+        const originalWechatDate=activeWechatDate;
+        activeWechatDate=appointmentDate;
         pushWechatOrder(standardName,`${standardName}book,${String(hh).padStart(2,'0')}${String(mm).padStart(2,'0')}`);
+        activeWechatDate=originalWechatDate;
         continue;
       }
     }
