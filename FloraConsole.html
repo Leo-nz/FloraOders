@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v290.html | Out状态取消需比较订单与Out操作的完整日期时间 -->
+<!-- VERSION: FloraConsole_v291.html | check理疗师查询显示当天实际订单数 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v290">
+<meta name="flora-console-version" content="v291">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -784,7 +784,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v290</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v291</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -5867,6 +5867,10 @@ function renderCheckResults(){
 
   // 金额合计只累加有明确金额的订单；未知价格不计入金额，但订单仍计数。
   const totalHoneyBottles=checkRows.reduce((sum,r)=>sum+getHoneyCount(r),0);
+  // v291：check 理疗师查询额外显示当天实际订单数，预约/book 与取消订单不计入实际完成订单。
+  const therapistActualOrderCount=(queryMode==='therapist')
+    ? checkRows.filter(r=>!String(r.sales||'').toLowerCase().includes('book') && r.status!=='canceled').length
+    : 0;
   const totalAmount=checkRows.reduce((sum,r)=>{
     if(r.amountUnknown) return sum;
     const n=Number(r.amount);
@@ -5992,7 +5996,7 @@ function renderCheckResults(){
   html+=`<div class="check-panel-head check-panel-head-compact">
     <div class="check-summary-line">
       <span class="check-summary-heading">${escapeHtml(resultTitle)}${isMarkerSummary ? ` · ${escapeHtml(lastCheckQueryMeta?.queryLabel||yDateSpan)}` : (queryMode==='therapistDate' || queryMode==='therapistDateRange') ? ` · ${escapeHtml(queryValue)}` : ''}</span>
-      ${isMarkerSummary ? `${includesHoneyMarker?'':`<button class="btn btn-outline btn-sm" type="button" onclick="toggleCheckYSummaryMetric()">${checkYSummaryMetric==='count'?'切换显示金额总和':'切换显示订单总数'}</button>`}<span class="check-summary-chip">${includesHoneyMarker?'蜂蜜瓶数':(checkYSummaryMetric==='count'?'订单总数':'金额总和')} <strong class="${checkYSummaryMetric==='amount'?'check-summary-money':''}">${includesHoneyMarker?totalHoneyBottles+' 瓶':(checkYSummaryMetric==='count'?checkRows.length+' 单':'¥'+totalAmount.toFixed(2))}</strong></span>${includesHoneyMarker?`<span class="check-summary-chip">订单 <strong>${checkRows.length} 单</strong></span><span class="check-summary-chip">金额合计 <strong class="check-summary-money">¥${totalAmount.toFixed(2)}</strong></span>`:''}` : `<span class="check-summary-chip">共 <strong>${checkRows.length}</strong> 条</span><span class="check-summary-chip">金额合计 <strong class="check-summary-money">¥${totalAmount.toFixed(2)}</strong></span><span class="check-summary-chip">序号 <strong>${escapeHtml(sequenceText)}</strong></span><span class="check-summary-chip">时间跨度 <strong>${escapeHtml(timeSpanText)}</strong></span>`}
+      ${isMarkerSummary ? `${includesHoneyMarker?'':`<button class="btn btn-outline btn-sm" type="button" onclick="toggleCheckYSummaryMetric()">${checkYSummaryMetric==='count'?'切换显示金额总和':'切换显示订单总数'}</button>`}<span class="check-summary-chip">${includesHoneyMarker?'蜂蜜瓶数':(checkYSummaryMetric==='count'?'订单总数':'金额总和')} <strong class="${checkYSummaryMetric==='amount'?'check-summary-money':''}">${includesHoneyMarker?totalHoneyBottles+' 瓶':(checkYSummaryMetric==='count'?checkRows.length+' 单':'¥'+totalAmount.toFixed(2))}</strong></span>${includesHoneyMarker?`<span class="check-summary-chip">订单 <strong>${checkRows.length} 单</strong></span><span class="check-summary-chip">金额合计 <strong class="check-summary-money">¥${totalAmount.toFixed(2)}</strong></span>`:''}` : `<span class="check-summary-chip">共 <strong>${checkRows.length}</strong> 条</span>${queryMode==='therapist'?`<span class="check-summary-chip">当天实际订单数 <strong>${therapistActualOrderCount} 单</strong></span>`:''}<span class="check-summary-chip">金额合计 <strong class="check-summary-money">¥${totalAmount.toFixed(2)}</strong></span><span class="check-summary-chip">序号 <strong>${escapeHtml(sequenceText)}</strong></span><span class="check-summary-chip">时间跨度 <strong>${escapeHtml(timeSpanText)}</strong></span>`}
     </div>
   </div>`;
 
