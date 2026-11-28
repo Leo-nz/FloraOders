@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!-- VERSION: FloraConsole_v291.html | check理疗师查询显示当天实际订单数 -->
+<!-- VERSION: FloraConsole_v294.html | 修复空备注/尾号彻底清除；尾号回退屏蔽；相对分钟预约自动BOOK -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta name="flora-console-version" content="v291">
+<meta name="flora-console-version" content="v294">
 <title>Flora订单统计台 - Larry</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -784,7 +784,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
   <div class="card">
     <div class="card-header">
       <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>使用说明书</div>
-      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v291</span>
+      <span style="font-size:12px;color:var(--gray-400)">Flora Console · 操作流程与命令参考 · version: v294</span>
     </div>
     <div class="card-body">
       <div class="parse-help help-tab">
@@ -1342,10 +1342,11 @@ function extractGuestTailFromText(raw){
 }
 
 function getGuestTail(value){
-  // 读取顺序：正式字段 → 旧字段 tail → 备注中的“客人尾号” → 原始紧凑文本。
+  // v294：guestTail 一旦作为正式字段存在，就具有最高且唯一的权威性；空字符串代表明确清空。
+  // 只有真正没有 guestTail 字段的旧数据，才允许从 tail / extra / raw 迁移恢复。
   if(value && typeof value==='object'){
-    const direct=normalizeGuestTail(value.guestTail ?? value.tail);
-    if(direct) return direct;
+    if(Object.prototype.hasOwnProperty.call(value,'guestTail')) return normalizeGuestTail(value.guestTail);
+    if(Object.prototype.hasOwnProperty.call(value,'tail')) return normalizeGuestTail(value.tail);
     const extraMatch=String(value.extra ?? '').match(/客人尾号\s*([0-9]{3,4})/i);
     if(extraMatch) return normalizeGuestTail(extraMatch[1]);
     return extractGuestTailFromText(value.raw);
@@ -1407,7 +1408,9 @@ function loadData(){
     orders=JSON.parse(localStorage.getItem(STORAGE_KEY))||[];
     if(Array.isArray(orders)){
       orders.forEach(o=>{
-        o.guestTail=getGuestTail(o);
+        // v294：仅迁移真正缺少 guestTail 字段的旧记录；已明确保存空值的订单不得从旧字段复活尾号。
+        if(Object.prototype.hasOwnProperty.call(o,'guestTail')) o.guestTail=normalizeGuestTail(o.guestTail);
+        else o.guestTail=getGuestTail(o);
         o.honeyCount=getHoneyCount(o);
         if(o.honeyCount>0) o.honey=true;
         if(!o.raw) o.raw='';
@@ -1649,7 +1652,7 @@ function completeManualQueueMoveForOrder(order,isNewActualOrder=false){
   const outIndex=outList.findIndex(item=>item&&item.key===key);
   if(outIndex>=0){
     const outRecord=outList[outIndex];
-    // v290：只有订单实际发生时间晚于 Out 操作时间，才算 Out 期间重新接单并取消倒计时。
+    // v292：只有订单实际发生时间晚于 Out 操作时间，才算 Out 期间重新接单并取消倒计时。
     // 必须比较完整年月日时分；补录前一天的历史订单不能解除今天的 Out。
     const orderAt=queueOrderDateTime(order)?.getTime();
     const outAt=Date.parse(outRecord.outAt||'');
@@ -1845,7 +1848,33 @@ function rebuildTherapistQueue(shopCode){return getTherapistQueueShop(shopCode).
 // v286：订单新增、补录、更新或删除后，统一从当前仍有效的历史订单重算队列。
 // 这样补录按真实发生时间插入；删除后自动回退到该理疗师剩余的最近有效接单时间。
 // book预约、已取消/已删除订单不参与；真实人工set仍由manualAt规则保留优先级。
-function reconcileTherapistQueueAfterOrderMutation(){
+// v292：订单日期/时间发生变化时，逐笔比对该理疗师是否还有更晚的有效实际订单。
+// 若有更晚订单，当前队列依据仍由后续订单决定，不必移动；若没有，则让变更后的时间参与最新队列计算。
+// 无论是否存在后续订单，都会完成一次匹配比对，并在最后统一重算队列快照。
+function reconcileTherapistQueueAfterOrderMutation(changedOrderTimes=[]){
+  (Array.isArray(changedOrderTimes)?changedOrderTimes:[]).forEach(change=>{
+    const order=change?.order;
+    if(!order||!isQueueActualOrder(order))return;
+    const changedAt=queueOrderDateTime(order)?.getTime();
+    if(!Number.isFinite(changedAt))return;
+    const therapistKey=queueNormalizeName(order.sales);
+    const hasLaterActualOrder=orders.some(other=>{
+      if(other===order||!isQueueActualOrder(other))return false;
+      if(queueNormalizeName(other.sales)!==therapistKey)return false;
+      const otherAt=queueOrderDateTime(other)?.getTime();
+      return Number.isFinite(otherAt)&&otherAt>changedAt;
+    });
+    // 有后续订单：匹配确认即可，队列仍由后续订单决定。
+    if(hasLaterActualOrder)return;
+    // 已无后续订单：若变更后的订单时间晚于人工 set 时间，旧人工位置不再锁住队列。
+    const shopCode=String(order.shopCode||'');
+    const moves=getTherapistQueueManualMoves(shopCode,false);
+    const moveIndex=moves.findIndex(move=>move&&move.key===therapistKey);
+    if(moveIndex>=0){
+      const manualAt=Date.parse(moves[moveIndex].manualAt||moves[moveIndex].movedAt||'');
+      if(Number.isFinite(manualAt)&&changedAt>manualAt)moves.splice(moveIndex,1);
+    }
+  });
   return getTherapistQueueSnapshot(new Date());
 }
 function recordTherapistQueueTurn(order){return !!order&&isQueueActualOrder(order)&&Number(order.amount)>50;}
@@ -3713,7 +3742,7 @@ function convertWechatLogToOrders(inputText){
       else if(period==='中午') { if(hh<11) hh+=12; }
       else if(hh<12 && messageHour>=12 && (hh<messageHour || (hh===messageHour && mm<=minute))) hh+=12;
       if(hh>=0 && hh<24 && mm>=0 && mm<60){
-        // v290：相对日期以该条微信消息时间戳为基准，而不是解析时的系统日期。
+        // v292：相对日期以该条微信消息时间戳为基准，而不是解析时的系统日期。
         const dayOffset=relativeDay==='明天'?1:(relativeDay==='后天'?2:0);
         const appointmentDate=dateWithOffset(date,dayOffset);
         if(!firstDate) firstDate=appointmentDate;
@@ -4297,7 +4326,12 @@ function parseMessages(){
       const isFutureDate=targetDate>todayDate;
       const isFutureTimeToday=targetDate===todayDate && timeInfo.dayOffset===0 && actualTimeMinutes>parseBaseMinutes;
       // v271：固定字段“序号,空金额,空时长,备注,尾号,时间”同样按完整日期时间判断未来预约；未来时自动补 book。
-      const autoBookFuture=!/book/i.test(sales) && /^\d{4}$/.test(String(rawTime||'')) && (isFutureDate||isFutureTimeToday);
+      // v294：固定字段格式末尾1～2位正整数同样是未来分钟偏移，必须标记 BOOK。
+      // 例如 lily,,150,40,不是本人就走,7213,30 → 30分钟后预约，而不是正式订单。
+      const rawTimeIsPositiveOffset=/^\d{1,2}$/.test(String(rawTime||'')) && Number(rawTime)>0;
+      const autoBookFuture=!/book/i.test(sales) && (
+        ( /^\d{4}$/.test(String(rawTime||'')) && (isFutureDate||isFutureTimeToday) ) || rawTimeIsPositiveOffset
+      );
       const orderSales=autoBookFuture?sales+'book':sales;
       const isBook=/book/i.test(orderSales);
       const seqNo=seqText?parseInt(seqText,10):findUnusedSeqNo(currentShopCode,orderSales,targetDate);
@@ -5867,15 +5901,16 @@ function renderCheckResults(){
 
   // 金额合计只累加有明确金额的订单；未知价格不计入金额，但订单仍计数。
   const totalHoneyBottles=checkRows.reduce((sum,r)=>sum+getHoneyCount(r),0);
-  // v291：check 理疗师查询额外显示当天实际订单数，预约/book 与取消订单不计入实际完成订单。
-  const therapistActualOrderCount=(queryMode==='therapist')
-    ? checkRows.filter(r=>!String(r.sales||'').toLowerCase().includes('book') && r.status!=='canceled').length
-    : 0;
   const totalAmount=checkRows.reduce((sum,r)=>{
     if(r.amountUnknown) return sum;
     const n=Number(r.amount);
     return Number.isFinite(n) ? sum+n : sum;
   },0);
+  // v292：check 理疗师（如 check daisy）默认查询当天订单；
+  // 单独统计当天实际完成的正式订单数，预约与取消订单不计入。
+  const therapistActualOrderCount = queryMode==='therapist'
+    ? checkRows.filter(r=>!String(r.sales||'').toLowerCase().includes('book') && r.status!=='canceled').length
+    : null;
 
   const queryLabel = queryMode==='therapist' ? `理疗师：${queryValue}`
     : queryMode==='room' ? `理疗室：${queryValue}`
@@ -5996,9 +6031,10 @@ function renderCheckResults(){
   html+=`<div class="check-panel-head check-panel-head-compact">
     <div class="check-summary-line">
       <span class="check-summary-heading">${escapeHtml(resultTitle)}${isMarkerSummary ? ` · ${escapeHtml(lastCheckQueryMeta?.queryLabel||yDateSpan)}` : (queryMode==='therapistDate' || queryMode==='therapistDateRange') ? ` · ${escapeHtml(queryValue)}` : ''}</span>
-      ${isMarkerSummary ? `${includesHoneyMarker?'':`<button class="btn btn-outline btn-sm" type="button" onclick="toggleCheckYSummaryMetric()">${checkYSummaryMetric==='count'?'切换显示金额总和':'切换显示订单总数'}</button>`}<span class="check-summary-chip">${includesHoneyMarker?'蜂蜜瓶数':(checkYSummaryMetric==='count'?'订单总数':'金额总和')} <strong class="${checkYSummaryMetric==='amount'?'check-summary-money':''}">${includesHoneyMarker?totalHoneyBottles+' 瓶':(checkYSummaryMetric==='count'?checkRows.length+' 单':'¥'+totalAmount.toFixed(2))}</strong></span>${includesHoneyMarker?`<span class="check-summary-chip">订单 <strong>${checkRows.length} 单</strong></span><span class="check-summary-chip">金额合计 <strong class="check-summary-money">¥${totalAmount.toFixed(2)}</strong></span>`:''}` : `<span class="check-summary-chip">共 <strong>${checkRows.length}</strong> 条</span>${queryMode==='therapist'?`<span class="check-summary-chip">当天实际订单数 <strong>${therapistActualOrderCount} 单</strong></span>`:''}<span class="check-summary-chip">金额合计 <strong class="check-summary-money">¥${totalAmount.toFixed(2)}</strong></span><span class="check-summary-chip">序号 <strong>${escapeHtml(sequenceText)}</strong></span><span class="check-summary-chip">时间跨度 <strong>${escapeHtml(timeSpanText)}</strong></span>`}
+      ${isMarkerSummary ? `${includesHoneyMarker?'':`<button class="btn btn-outline btn-sm" type="button" onclick="toggleCheckYSummaryMetric()">${checkYSummaryMetric==='count'?'切换显示金额总和':'切换显示订单总数'}</button>`}<span class="check-summary-chip">${includesHoneyMarker?'蜂蜜瓶数':(checkYSummaryMetric==='count'?'订单总数':'金额总和')} <strong class="${checkYSummaryMetric==='amount'?'check-summary-money':''}">${includesHoneyMarker?totalHoneyBottles+' 瓶':(checkYSummaryMetric==='count'?checkRows.length+' 单':'¥'+totalAmount.toFixed(2))}</strong></span>${includesHoneyMarker?`<span class="check-summary-chip">订单 <strong>${checkRows.length} 单</strong></span><span class="check-summary-chip">金额合计 <strong class="check-summary-money">¥${totalAmount.toFixed(2)}</strong></span>`:''}` : `${queryMode==='therapist'?`<span class="check-summary-chip">当天实际订单 <strong>${therapistActualOrderCount} 单</strong></span>`:''}<span class="check-summary-chip">共 <strong>${checkRows.length}</strong> 条</span><span class="check-summary-chip">金额合计 <strong class="check-summary-money">¥${totalAmount.toFixed(2)}</strong></span><span class="check-summary-chip">序号 <strong>${escapeHtml(sequenceText)}</strong></span><span class="check-summary-chip">时间跨度 <strong>${escapeHtml(timeSpanText)}</strong></span>`}
     </div>
   </div>`;
+
 
   if(checkRows.length===0){
     html+=`<div class="check-panel-list"><div class="check-empty-state">没有符合条件的订单</div></div>`;
@@ -6362,6 +6398,7 @@ function batchAddParse(){
   }
 
   let addedCount=0, updatedCount=0, skippedCount=0, deletedCount=0, updateMissingCount=0;
+  const changedOrderTimes=[];
   selected.forEach(r=>{
     // 普通新增/更新订单：2位数“+N分钟”若跨过午夜，订单日期自动顺延。
     // 删除指令始终使用用户选择的统一日期，不套用时间偏移。
@@ -6458,9 +6495,16 @@ function batchAddParse(){
       return;
     }
 
-    // Dedup by date + shopCode + sales + seqNo
-    const idx=orders.findIndex(o=>o.date===orderDate && o.shopCode===r.shopCode && o.sales===r.sales && (r.seqNo ? o.seqNo===r.seqNo : (!o.seqNo && o.time===r.time)));
+    // v293：订单更新身份按日期 + 店铺 + 理疗师（忽略 book 后缀）+ 序号匹配；备注/尾号不是身份字段。
+    // 这样从 Click 回填后删掉备注或尾号，仍能命中原订单并按第二次输入完整覆盖。
+    const normalizeSalesForUpdate=v=>String(v||'').replace(/\s+/g,'').replace(/book$/i,'').toLowerCase();
+    const idx=orders.findIndex(o=>
+      o.date===orderDate && String(o.shopCode)===String(r.shopCode) &&
+      normalizeSalesForUpdate(o.sales)===normalizeSalesForUpdate(r.sales) &&
+      (r.seqNo ? String(o.seqNo)===String(r.seqNo) : (!o.seqNo && o.time===r.time))
+    );
     if(idx>=0){
+      const previousOrderAt=queueOrderDateTime(orders[idx])?.getTime()??NaN;
       const wasCanceledBeforeReentry=orders[idx].status==='canceled';
       // Overwrite only if new time >= existing time (later time wins)
       //if(r.time>=orders[idx].time){
@@ -6468,15 +6512,15 @@ function batchAddParse(){
         orders[idx].amount=r.amount;
         orders[idx].amountUnknown=r.amountUnknown||false;
         orders[idx].time=r.time;
-        orders[idx].extra=r.extra;
         orders[idx].autoCompleted=!!r.autoCompleted;
-        orders[idx].raw=r.raw||orders[idx].raw||'';
+        // v293：第二次输入是完整的新订单内容。尾号未提供时必须清空旧值，不能沿用原订单。
         const incomingGuestTail=getGuestTail(r);
-        if(incomingGuestTail){
-          orders[idx].guestTail=incomingGuestTail;
-        }else{
-          orders[idx].guestTail=getGuestTail(orders[idx]);
-        }
+        orders[idx].guestTail=incomingGuestTail;
+        // v294：无论旧记录是否存在 tail 别名，都同步覆盖；空值代表彻底删除。
+        if(Object.prototype.hasOwnProperty.call(orders[idx],'tail')) orders[idx].tail=incomingGuestTail;
+        // 清除旧 extra/raw 中可能被旧版兼容读取的尾号残留；新输入字段才是唯一来源。
+        orders[idx].extra=String(r.extra||'');
+        orders[idx].raw=String(r.raw||'');
         orders[idx].duration=r.duration||'';
         orders[idx].room=r.room||'';
         orders[idx].selfBooked=!!r.selfBooked;
@@ -6487,10 +6531,13 @@ function batchAddParse(){
         orders[idx].phoneOrder=!!r.phoneOrder;
         orders[idx].honey=!!r.honey;
         orders[idx].honeyCount=getHoneyCount(r);
-        // v204：更新已有订单时，必须同步写入新解析出的备注；本次未提供备注则保留原备注。
-        const incomingNote=String(r.note||'').trim();
-        if(incomingNote) orders[idx].note=incomingNote;
+        // v293：备注也按第二次输入完整覆盖；没有备注即清空旧备注。
+        orders[idx].note=String(r.note||'').trim();
         orders[idx].status='pending';
+        const updatedOrderAt=queueOrderDateTime(orders[idx])?.getTime()??NaN;
+        if(Number.isFinite(previousOrderAt)&&Number.isFinite(updatedOrderAt)&&previousOrderAt!==updatedOrderAt){
+          changedOrderTimes.push({order:orders[idx],previousOrderAt,updatedOrderAt});
+        }
         if(wasCanceledBeforeReentry){completeManualQueueMoveForOrder(orders[idx],true);recordTherapistQueueTurn(orders[idx]);}
         updatedCount++;
       } else {
@@ -6507,7 +6554,7 @@ function batchAddParse(){
     }
   });
   saveData();
-  const queueSnapshotAfterOrderMutation=reconcileTherapistQueueAfterOrderMutation();
+  const queueSnapshotAfterOrderMutation=reconcileTherapistQueueAfterOrderMutation(changedOrderTimes);
   document.getElementById('parseTextarea').value='';
   document.getElementById('parseResult').innerHTML='';
   parseResults=[];
